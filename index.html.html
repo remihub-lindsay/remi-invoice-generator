@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:sans-serif;font-size:14px;color:#222;background:#f5f5f3;padding:24px}
+h2{font-size:18px;font-weight:500;margin-bottom:20px}
+h3{font-size:14px;font-weight:500;margin-bottom:12px;color:#555}
+.card{background:#fff;border:0.5px solid #ddd;border-radius:12px;padding:20px;margin-bottom:16px}
+label{display:block;font-size:12px;color:#666;margin-bottom:4px;margin-top:12px}
+label:first-of-type{margin-top:0}
+input{width:100%;padding:8px 10px;border:0.5px solid #ccc;border-radius:6px;font-size:13px;font-family:sans-serif;background:#fff;color:#222}
+input:focus{outline:none;border-color:#888}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.toggle-row{display:flex;gap:12px;margin-bottom:12px}
+.toggle-btn{flex:1;padding:8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;color:#555}
+.toggle-btn.active{border-color:#222;background:#222;color:#fff}
+.doc-type-row{display:flex;gap:12px;margin-bottom:16px}
+.doc-btn{flex:1;padding:10px;border:0.5px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;font-weight:500;color:#555}
+.doc-btn.active{border-color:#1764c4;background:#1764c4;color:#fff}
+.line-header{display:grid;grid-template-columns:2fr 2fr 1fr 1fr 1fr 28px;gap:8px;font-size:11px;color:#888;margin-bottom:6px;padding:0 2px}
+.line-row{display:grid;grid-template-columns:2fr 2fr 1fr 1fr 1fr 28px;gap:8px;margin-bottom:8px;align-items:center}
+.line-row input{margin:0}
+.rm-btn{width:28px;height:34px;border:0.5px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;color:#999;font-size:16px;display:flex;align-items:center;justify-content:center}
+.rm-btn:hover{border-color:#e24b4a;color:#e24b4a}
+.add-btn{padding:7px 14px;border:0.5px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;color:#555;margin-top:4px}
+.total-row{display:flex;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:0.5px solid #eee}
+.total-box{background:#f0f0ee;border-radius:8px;padding:12px 20px;text-align:right}
+.total-label{font-size:12px;color:#888}
+.total-amount{font-size:22px;font-weight:500}
+.generate-btn{width:100%;padding:12px;background:#222;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;margin-top:8px}
+.generate-btn:hover{background:#444}
+.cm-note{background:#faeeda;border:0.5px solid #fac775;border-radius:6px;padding:10px 14px;font-size:12px;color:#633806;margin-bottom:12px}
+.receipt-summary{background:#f8f8f6;border-radius:8px;padding:14px 16px;margin-top:4px}
+</style>
+</head>
+<body>
+<h2>Remi document generator</h2>
+
+<div class="card">
+  <h3>Document type</h3>
+  <div class="doc-type-row">
+    <button class="doc-btn active" onclick="setDocType('invoice',this)">Invoice</button>
+    <button class="doc-btn" onclick="setDocType('cm',this)">Credit memo</button>
+    <button class="doc-btn" onclick="setDocType('receipt',this)">Receipt</button>
+  </div>
+  <div id="cm-note" class="cm-note" style="display:none">Credit memo amounts will appear as negative values on the document.</div>
+  <div class="row2">
+    <div><label id="docnum-label">Document number</label><input id="doc-num" placeholder="REMI-142140"></div>
+    <div><label>Issue date</label><input type="date" id="issue-date"></div>
+  </div>
+  <div class="row2" id="due-row" style="margin-top:0">
+    <div></div>
+    <div><label>Payment due date</label><input type="date" id="due-date"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Bill to</h3>
+  <div class="toggle-row">
+    <button class="toggle-btn active" onclick="setBillType('sunrun',this)">Sunrun project</button>
+    <button class="toggle-btn" onclick="setBillType('standard',this)">Standard</button>
+  </div>
+  <div id="sunrun-fields">
+    <div class="row2">
+      <div><label>Customer name</label><input id="sr-name" placeholder="Terry Melichar"></div>
+      <div><label>Sunrun ID</label><input id="sr-id" placeholder="03978499"></div>
+    </div>
+    <div><label>Address line 1</label><input id="sr-addr1" placeholder="9711 Summer Park Ct"></div>
+    <div><label>Address line 2 (city, state, zip)</label><input id="sr-addr2" placeholder="Columbia, MD 21046-1812"></div>
+  </div>
+  <div id="standard-fields" style="display:none">
+    <div><label>Name / company</label><input id="std-name" placeholder="Alfred Rzeczkowski"></div>
+    <div><label>Address line 1</label><input id="std-addr1" placeholder="525 Abbeywood Dr"></div>
+    <div><label>Address line 2 (city, state, zip)</label><input id="std-addr2" placeholder="Cary, IL 60013"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Line items</h3>
+  <div class="line-header">
+    <span>Service</span><span>Description</span><span>Qty</span><span>Rate</span><span>Total</span><span></span>
+  </div>
+  <div id="lines"></div>
+  <button class="add-btn" onclick="addLine()">+ Add line item</button>
+  <div class="total-row">
+    <div class="total-box">
+      <div class="total-label">Total (USD)</div>
+      <div class="total-amount" id="total-display">$0.00</div>
+    </div>
+  </div>
+</div>
+
+<div class="card" id="receipt-summary-card" style="display:none">
+  <h3>Payment summary</h3>
+  <div class="receipt-summary">
+    <div class="row2">
+      <div><label>Amount paid</label><input type="number" id="amt-paid" placeholder="0.00" step="0.01" oninput="updateBalance()"></div>
+      <div><label>Payment date</label><input type="date" id="pay-date"></div>
+    </div>
+    <label style="margin-top:14px">Balance (auto-calculated)</label>
+    <input id="balance-display" readonly style="background:#f0f0ee;font-weight:500;color:#222" value="$0.00">
+  </div>
+</div>
+
+<button class="generate-btn" onclick="generatePDF()">Generate PDF</button>
+
+<script>
+let docType='invoice', billType='sunrun', lineCount=0;
+
+function setDocType(t,btn){
+  docType=t;
+  document.querySelectorAll('.doc-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('cm-note').style.display=t==='cm'?'block':'none';
+  document.getElementById('due-row').style.display=t==='invoice'?'grid':'none';
+  document.getElementById('receipt-summary-card').style.display=t==='receipt'?'block':'none';
+  document.getElementById('docnum-label').textContent=t==='receipt'?'Receipt number':'Document number';
+  const ph={invoice:'REMI-142140',cm:'REMI-CM-001',receipt:'REMI-123097'};
+  document.getElementById('doc-num').placeholder=ph[t];
+  updateBalance();
+}
+
+function setBillType(t,btn){
+  billType=t;
+  document.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('sunrun-fields').style.display=t==='sunrun'?'block':'none';
+  document.getElementById('standard-fields').style.display=t==='standard'?'block':'none';
+}
+
+function addLine(svc='',desc='',qty='',rate=''){
+  if(lineCount>=30)return;
+  const id='line-'+lineCount++;
+  const div=document.createElement('div');
+  div.className='line-row';div.id=id;
+  div.innerHTML=`
+    <input placeholder="Service name" value="${ea(svc)}" oninput="calcTotal()">
+    <input placeholder="Description" value="${ea(desc)}" oninput="calcTotal()">
+    <input type="number" placeholder="1" min="0" value="${qty}" oninput="calcTotal()">
+    <input type="number" placeholder="0.00" step="0.01" min="0" value="${rate}" oninput="calcTotal()">
+    <input placeholder="$0.00" readonly style="background:#f8f8f6;color:#555">
+    <button class="rm-btn" onclick="removeLine('${id}')">×</button>`;
+  document.getElementById('lines').appendChild(div);
+  calcTotal();
+}
+
+function ea(s){return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function removeLine(id){document.getElementById(id)?.remove();calcTotal();}
+
+function calcTotal(){
+  let total=0;
+  document.querySelectorAll('#lines .line-row').forEach(row=>{
+    const inp=row.querySelectorAll('input');
+    const qty=parseFloat(inp[2].value)||0;
+    const rate=parseFloat(inp[3].value)||0;
+    const line=qty*rate;
+    inp[4].value=line?'$'+line.toFixed(2):'';
+    total+=line;
+  });
+  document.getElementById('total-display').textContent='$'+total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  updateBalance();
+}
+
+function updateBalance(){
+  if(docType!=='receipt')return;
+  const total=getGrandTotal();
+  const paid=parseFloat(document.getElementById('amt-paid').value)||0;
+  const bal=total-paid;
+  document.getElementById('balance-display').value='$'+bal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function getGrandTotal(){
+  let t=0;
+  document.querySelectorAll('#lines .line-row').forEach(row=>{
+    const inp=row.querySelectorAll('input');
+    t+=(parseFloat(inp[2].value)||0)*(parseFloat(inp[3].value)||0);
+  });
+  return t;
+}
+
+function fmtM(n){return '$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+
+function formatDate(d){
+  const[y,m,day]=d.split('-');
+  const mo=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return mo[parseInt(m)-1]+' '+parseInt(day).toString().padStart(2,'0')+','+y;
+}
+
+function getBillTo(){
+  if(billType==='sunrun'){
+    const name=document.getElementById('sr-name').value;
+    const sid=document.getElementById('sr-id').value;
+    const a1=document.getElementById('sr-addr1').value;
+    const a2=document.getElementById('sr-addr2').value;
+    const lines=[];
+    if(name||sid)lines.push('Sunrun'+(name?' | '+name:'')+(sid?' | '+sid:''));
+    if(a1)lines.push(a1);if(a2)lines.push(a2);
+    return lines;
+  }else{
+    return[document.getElementById('std-name').value,document.getElementById('std-addr1').value,document.getElementById('std-addr2').value].filter(Boolean);
+  }
+}
+
+function generatePDF(){
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'pt',format:'letter'});
+  const W=612,mg=50;
+  const isReceipt=docType==='receipt';
+  const isInvoice=docType==='invoice';
+  const isCM=docType==='cm';
+
+  // Header
+  doc.setFontSize(26).setFont('helvetica','bold').setTextColor(23,100,196);
+  doc.text('remi',W-mg,52,{align:'right'});
+  doc.setTextColor(30,30,30).setFontSize(13).setFont('helvetica','bold');
+  doc.text('Remi Roofing & Construction, Inc',mg,48);
+  doc.setFontSize(10).setFont('helvetica','normal');
+  doc.text('1850 Ashton Ave, Lehi, UT 84043',mg,62);
+  doc.setTextColor(0,102,204);
+  doc.text('payton@remihq.com',mg,75);
+  doc.setTextColor(30,30,30);
+
+  // Info box
+  const boxY=96,boxH=126;
+  doc.setFillColor(240,247,253).roundedRect(mg,boxY,W-mg*2,boxH,6,6,'F');
+  const docLabel=isReceipt?'Receipt':isCM?'Credit Memo':'Invoice';
+  doc.setFontSize(22).setFont('helvetica','bold').setTextColor(30,30,30);
+  doc.text(docLabel,mg+20,boxY+30);
+
+  const billTo=getBillTo();
+  doc.setFontSize(9).setFont('helvetica','normal').setTextColor(110,110,110);
+  doc.text('Billed to:',mg+20,boxY+52);
+  doc.setFontSize(11).setFont('helvetica','bold').setTextColor(30,30,30);
+  if(billTo[0])doc.text(billTo[0],mg+20,boxY+66);
+  doc.setFont('helvetica','normal').setFontSize(10);
+  if(billTo[1])doc.text(billTo[1],mg+20,boxY+80);
+  if(billTo[2])doc.text(billTo[2],mg+20,boxY+94);
+
+  const docNum=document.getElementById('doc-num').value||(isReceipt?'REMI-XXXXXX':isCM?'REMI-CM-XXX':'REMI-XXXXXX');
+  const issueVal=document.getElementById('issue-date').value;
+  const issueStr=issueVal?formatDate(issueVal):'—';
+  const rx=W-mg-20;
+  const numLabel=isReceipt?'Receipt No.':'Document No.';
+
+  doc.setFontSize(9).setFont('helvetica','normal').setTextColor(110,110,110);
+  doc.text(numLabel,rx,boxY+18,{align:'right'});
+  doc.setFontSize(13).setFont('helvetica','bold').setTextColor(30,30,30);
+  doc.text(docNum,rx,boxY+32,{align:'right'});
+  doc.setFontSize(9).setFont('helvetica','normal').setTextColor(110,110,110);
+  doc.text('Issued on',rx,boxY+56,{align:'right'});
+  doc.setFontSize(11).setFont('helvetica','bold').setTextColor(30,30,30);
+  doc.text(issueStr,rx,boxY+70,{align:'right'});
+
+  if(isInvoice){
+    const dueVal=document.getElementById('due-date').value;
+    const dueStr=dueVal?formatDate(dueVal):'—';
+    doc.setFontSize(9).setFont('helvetica','normal').setTextColor(110,110,110);
+    doc.text('Payment due',rx,boxY+90,{align:'right'});
+    doc.setFontSize(11).setFont('helvetica','bold').setTextColor(30,30,30);
+    doc.text(dueStr,rx,boxY+104,{align:'right'});
+  }
+
+  // Line items
+  const C={svc:{x:mg+12,w:115},desc:{x:mg+140,w:138},qty:{x:mg+292,w:52},rate:{x:mg+354,w:68},tot:{x:W-mg-12}};
+  const LH=13,RP=16;
+  let y=boxY+boxH+18;
+
+  doc.setFillColor(245,245,243).rect(mg,y,W-mg*2,22,'F');
+  doc.setFontSize(10).setFont('helvetica','bold').setTextColor(75,75,75);
+  doc.text('Service',C.svc.x,y+15);
+  doc.text('Description',C.desc.x,y+15);
+  doc.text(isReceipt?'Qty.':'Qty',C.qty.x,y+15);
+  doc.text('Rate',C.rate.x,y+15);
+  doc.text('Total',C.tot.x,y+15,{align:'right'});
+  y+=24;
+
+  let grandTotal=0;
+  const lineEls=document.querySelectorAll('#lines .line-row');
+  lineEls.forEach(row=>{
+    const inp=row.querySelectorAll('input');
+    const svc=inp[0].value||'-';
+    const desc=inp[1].value||'-';
+    const qty=parseFloat(inp[2].value)||0;
+    const rate=parseFloat(inp[3].value)||0;
+    const lt=qty*rate;
+    grandTotal+=lt;
+    doc.setFontSize(10).setFont('helvetica','normal').setTextColor(30,30,30);
+    const svcL=doc.splitTextToSize(svc,C.svc.w);
+    const descL=doc.splitTextToSize(desc,C.desc.w);
+    const nL=Math.max(svcL.length,descL.length,1);
+    const rowH=nL*LH+RP;
+    const ty=y+rowH-RP-(nL-1)*LH;
+    doc.text(svcL,C.svc.x,ty);
+    doc.text(descL,C.desc.x,ty);
+    doc.text(qty?String(qty):'-',C.qty.x,ty);
+    doc.text(rate?fmtM(rate):'-',C.rate.x,ty);
+    doc.text(lt?fmtM(lt):'-',C.tot.x,ty,{align:'right'});
+    doc.setDrawColor(215,215,215);
+    doc.line(mg,y+rowH,W-mg,y+rowH);
+    y+=rowH;
+  });
+  for(let i=lineEls.length;i<2;i++){
+    const rowH=LH+RP;
+    doc.setFontSize(10).setTextColor(185,185,185);
+    doc.text('-',C.svc.x,y+LH+RP-4);
+    doc.text('-',C.desc.x,y+LH+RP-4);
+    doc.setDrawColor(215,215,215);
+    doc.line(mg,y+rowH,W-mg,y+rowH);
+    y+=rowH;
+  }
+
+  if(isReceipt){
+    const paid=parseFloat(document.getElementById('amt-paid').value)||0;
+    const bal=grandTotal-paid;
+    const payDateVal=document.getElementById('pay-date').value;
+    const payDateStr=payDateVal?formatDate(payDateVal):'';
+    const colLabel=W-mg-195;
+    const colDate=W-mg-120;
+    const colVal=W-mg-12;
+    const rowH=28;
+    y+=100;
+    doc.setDrawColor(215,215,215);
+    doc.line(mg,y,W-mg,y);
+    y+=rowH;
+    doc.setFontSize(10).setFont('helvetica','normal').setTextColor(110,110,110);
+    doc.text('Total Billed',colLabel,y,{align:'right'});
+    doc.setTextColor(30,30,30);
+    doc.text(fmtM(grandTotal),colVal,y,{align:'right'});
+    y+=8;
+    doc.setDrawColor(215,215,215);
+    doc.line(mg,y,W-mg,y);
+    y+=rowH;
+    doc.setTextColor(110,110,110);
+    doc.text('Amount Paid',colLabel,y,{align:'right'});
+    if(payDateStr){doc.setTextColor(100,100,100);doc.text(payDateStr,colDate,y);}
+    doc.setTextColor(30,30,30);
+    doc.text((paid>0?'-':'')+fmtM(paid),colVal,y,{align:'right'});
+    y+=10;
+    doc.setDrawColor(215,215,215);
+    doc.line(mg,y,W-mg,y);
+    y+=10;
+    doc.setFillColor(240,247,253).roundedRect(mg,y,W-mg*2,44,6,6,'F');
+    doc.setFontSize(11).setFont('helvetica','normal').setTextColor(100,100,100);
+    doc.text('Balance (USD)',mg+20,y+28);
+    doc.setFontSize(20).setFont('helvetica','bold').setTextColor(30,30,30);
+    doc.text('$ '+Math.abs(bal).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),colVal,y+30,{align:'right'});
+  }else{
+    y+=18;
+    doc.setFillColor(237,244,252).roundedRect(W-mg-190,y,190,48,6,6,'F');
+    doc.setFontSize(10).setFont('helvetica','normal').setTextColor(110,110,110);
+    doc.text('Total (USD)',W-mg-18,y+16,{align:'right'});
+    doc.setFontSize(18).setFont('helvetica','bold').setTextColor(30,30,30);
+    doc.text((isCM?'-':'')+fmtM(grandTotal),W-mg-18,y+38,{align:'right'});
+  }
+
+  const fname=(document.getElementById('doc-num').value||(isReceipt?'receipt':isCM?'credit-memo':'invoice'))+'.pdf';
+  doc.save(fname);
+}
+
+// Init
+const today=new Date().toISOString().split('T')[0];
+document.getElementById('issue-date').value=today;
+const due=new Date();due.setDate(due.getDate()+7);
+document.getElementById('due-date').value=due.toISOString().split('T')[0];
+document.getElementById('issue-date').addEventListener('change',function(){
+  const d=new Date(this.value+'T12:00:00');
+  d.setDate(d.getDate()+7);
+  document.getElementById('due-date').value=d.toISOString().split('T')[0];
+});
+document.getElementById('pay-date').value=today;
+addLine();
+</script>
+</body>
+</html>

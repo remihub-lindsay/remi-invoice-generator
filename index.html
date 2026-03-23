@@ -2,7 +2,9 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:sans-serif;font-size:14px;color:#222;background:#f5f5f3;padding:24px}
@@ -11,10 +13,9 @@ h3{font-size:14px;font-weight:500;margin-bottom:12px;color:#555}
 .card{background:#fff;border:0.5px solid #ddd;border-radius:12px;padding:20px;margin-bottom:16px}
 label{display:block;font-size:12px;color:#666;margin-bottom:4px;margin-top:12px}
 label:first-of-type{margin-top:0}
-input,select{width:100%;padding:8px 10px;border:0.5px solid #ccc;border-radius:6px;font-size:13px;font-family:sans-serif;background:#fff;color:#222}
-input:focus{outline:none;border-color:#888}
+input,select,textarea{width:100%;padding:8px 10px;border:0.5px solid #ccc;border-radius:6px;font-size:13px;font-family:sans-serif;background:#fff;color:#222}
+input:focus,textarea:focus{outline:none;border-color:#888}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 .toggle-row{display:flex;gap:12px;margin-bottom:12px}
 .toggle-btn{flex:1;padding:8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;color:#555}
 .toggle-btn.active{border-color:#222;background:#222;color:#fff}
@@ -41,7 +42,7 @@ input:focus{outline:none;border-color:#888}
 .drop-label{font-size:13px;color:#555;font-weight:500}
 .drop-sub{font-size:11px;color:#999;margin-top:4px}
 .preview-wrap{display:none;margin-top:12px;position:relative}
-.preview-wrap img{max-width:100%;max-height:180px;border-radius:8px;border:0.5px solid #ddd;object-fit:contain}
+.preview-wrap img{max-width:100%;max-height:220px;border-radius:8px;border:0.5px solid #ddd;object-fit:contain}
 .clear-img{position:absolute;top:6px;right:6px;background:#fff;border:0.5px solid #ddd;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:#666}
 .clear-img:hover{border-color:#e24b4a;color:#e24b4a}
 .scan-btn{width:100%;margin-top:10px;padding:9px;background:#1764c4;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500}
@@ -50,10 +51,13 @@ input:focus{outline:none;border-color:#888}
 .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;margin-right:6px;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
 .scan-note{font-size:11px;color:#999;margin-top:6px;text-align:center}
+.ok{background:#edf8ef;border:0.5px solid #8bd19a;border-radius:8px;padding:10px 14px;font-size:12px;color:#1f6b31;margin-top:10px}
+.warn{background:#fff8e7;border:0.5px solid #f0c96c;border-radius:8px;padding:10px 14px;font-size:12px;color:#7a5a10;margin-top:10px}
 .err{background:#fcebeb;border:0.5px solid #f09595;border-radius:8px;padding:10px 14px;font-size:12px;color:#a32d2d;margin-top:10px}
 .receipt-summary{background:#f8f8f6;border-radius:8px;padding:14px 16px;margin-top:4px}
 .receipt-summary label{margin-top:8px}
 .receipt-summary label:first-of-type{margin-top:0}
+.small{font-size:11px;color:#777;margin-top:8px;line-height:1.4}
 </style>
 </head>
 <body>
@@ -109,9 +113,10 @@ input:focus{outline:none;border-color:#888}
     <img id="preview-img" src="" alt="Quote preview">
     <button class="clear-img" onclick="clearImage()">×</button>
   </div>
-  <button class="scan-btn" id="scan-btn" onclick="scanImage()" style="display:none">Scan quote for line items</button>
-  <p class="scan-note" id="scan-note" style="display:none">AI will read service names, quantities, and rates from your screenshot and fill the line items below.</p>
+  <button class="scan-btn" id="scan-btn" onclick="scanImageLocal()" style="display:none">Scan quote for line items</button>
+  <p class="scan-note" id="scan-note" style="display:none">The screenshot is processed locally in your browser. Nothing is uploaded to an AI API.</p>
   <div id="scan-err"></div>
+  <p class="small">Best results: crop tightly around the quote table, keep columns visible, and use a clear screenshot. This local OCR method is more private, but it can be less accurate than a cloud vision model.</p>
 </div>
 
 <div class="card">
@@ -129,7 +134,6 @@ input:focus{outline:none;border-color:#888}
   </div>
 </div>
 
-<!-- Receipt-only payment summary -->
 <div class="card" id="receipt-summary-card" style="display:none">
   <h3>Payment summary</h3>
   <div class="receipt-summary">
@@ -151,7 +155,7 @@ input:focus{outline:none;border-color:#888}
 <button class="generate-btn" onclick="generatePDF()">Generate PDF</button>
 
 <script>
-let docType='invoice', billType='sunrun', lineCount=0, imgBase64=null, imgType=null;
+let docType='invoice', billType='sunrun', lineCount=0, imgDataUrl=null;
 
 function setDocType(t,btn){
   docType=t;
@@ -173,66 +177,155 @@ function setBillType(t,btn){
   document.getElementById('standard-fields').style.display=t==='standard'?'block':'none';
 }
 
-// ── Image ───────────────────────────────────────────────
 const dz=document.getElementById('drop-zone');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over')});
 dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
 dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0])});
 function handleFile(file){
   if(!file||!file.type.startsWith('image/'))return;
-  imgType=file.type;
   const r=new FileReader();
   r.onload=e=>{
-    imgBase64=e.target.result.split(',')[1];
+    imgDataUrl=e.target.result;
     document.getElementById('preview-img').src=e.target.result;
     document.getElementById('preview-wrap').style.display='block';
     document.getElementById('scan-btn').style.display='block';
     document.getElementById('scan-note').style.display='block';
+    document.getElementById('scan-err').innerHTML='';
   };
   r.readAsDataURL(file);
 }
 function clearImage(){
-  imgBase64=null;imgType=null;
+  imgDataUrl=null;
   document.getElementById('preview-wrap').style.display='none';
   document.getElementById('scan-btn').style.display='none';
   document.getElementById('scan-note').style.display='none';
   document.getElementById('img-input').value='';
   document.getElementById('scan-err').innerHTML='';
 }
-async function scanImage(){
-  if(!imgBase64)return;
-  const btn=document.getElementById('scan-btn');
-  btn.disabled=true;btn.innerHTML='<span class="spinner"></span>Reading quote...';
-  document.getElementById('scan-err').innerHTML='';
-  try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',max_tokens:4000,
-        messages:[{role:'user',content:[
-          {type:'image',source:{type:'base64',media_type:imgType,data:imgBase64}},
-          {type:'text',text:`This is a roofing/solar project quote. Extract every line item.
-Return ONLY a JSON array, no markdown. Each element:
-{"service":"<name>","description":"<desc or same as service>","qty":<number>,"rate":<number>}
-If qty or rate not visible use 1 and 0. Do not include tax or total rows.`}
-        ]}]
-      })
-    });
-    const data=await res.json();
-    const text=data.content?.map(b=>b.text||'').join('').replace(/```json|```/g,'').trim();
-    const items=JSON.parse(text);
-    if(!Array.isArray(items)||!items.length)throw new Error('No line items found.');
-    document.getElementById('lines').innerHTML='';lineCount=0;
-    items.slice(0,30).forEach(item=>addLine(item.service||'',item.description||item.service||'',item.qty??1,item.rate??0));
-    calcTotal();
-    btn.innerHTML='Re-scan image';
-  }catch(e){
-    document.getElementById('scan-err').innerHTML=`<div class="err">Could not read line items: ${e.message}</div>`;
-    btn.innerHTML='Scan quote for line items';
-  }finally{btn.disabled=false;}
+
+function normalizeMoneyToken(token){
+  if(!token) return null;
+  let s=String(token).replace(/[$,\s]/g,'').replace(/[Oo]/g,'0');
+  s=s.replace(/[^0-9.-]/g,'');
+  if(!s) return null;
+  const n=parseFloat(s);
+  return Number.isFinite(n) ? n : null;
 }
 
-// ── Line items ──────────────────────────────────────────
+function looksLikeMoney(token){
+  return /\$?\d[\d,]*\.\d{2}$/.test(token) || /^\d+\.\d{2}$/.test(token);
+}
+
+function looksLikeQty(token){
+  return /^\d+(\.\d+)?$/.test(token || '');
+}
+
+function extractItemsFromText(rawText){
+  const text=(rawText || '')
+    .replace(/\r/g,'')
+    .replace(/[|]/g,' ')
+    .replace(/[“”]/g,'"')
+    .replace(/[‘’]/g,"'");
+
+  const lines=text.split('\n')
+    .map(line=>line.replace(/\s+/g,' ').trim())
+    .filter(Boolean);
+
+  const filtered=lines.filter(line=>{
+    const low=line.toLowerCase();
+    return !(
+      low.includes('total') ||
+      low.includes('subtotal') ||
+      low.includes('tax') ||
+      low.includes('amount due') ||
+      low.includes('balance due') ||
+      low.includes('grand total') ||
+      low.includes('page ') ||
+      low.includes('invoice') ||
+      low.includes('credit memo')
+    );
+  });
+
+  const items=[];
+  for(const line of filtered){
+    const tokens=line.split(' ').filter(Boolean);
+    if(tokens.length < 2) continue;
+
+    const moneyTokens=tokens.filter(looksLikeMoney);
+    if(moneyTokens.length === 0) continue;
+
+    let rate = normalizeMoneyToken(moneyTokens[moneyTokens.length - 1]);
+    let qty = 1;
+
+    const rateIndex=tokens.findIndex(t => t === moneyTokens[moneyTokens.length - 1]);
+    const qtyToken=tokens[rateIndex - 1];
+    if(looksLikeQty(qtyToken)) qty = parseFloat(qtyToken);
+
+    let descTokens=tokens.slice(0, Math.max(rateIndex - (looksLikeQty(qtyToken) ? 1 : 0), 0));
+    if(descTokens.length === 0) descTokens=tokens.slice(0, rateIndex);
+
+    const description=descTokens.join(' ').trim();
+    if(!description || description.length < 2) continue;
+    if(rate == null) rate = 0;
+
+    items.push({
+      service: description,
+      description,
+      qty: Number.isFinite(qty) ? qty : 1,
+      rate: Number.isFinite(rate) ? rate : 0,
+    });
+  }
+
+  const deduped=[];
+  const seen=new Set();
+  for(const item of items){
+    const key=`${item.description}|${item.qty}|${item.rate}`;
+    if(seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(item);
+  }
+  return deduped;
+}
+
+async function scanImageLocal(){
+  if(!imgDataUrl) return;
+  const btn=document.getElementById('scan-btn');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spinner"></span>Reading quote...';
+  document.getElementById('scan-err').innerHTML='';
+
+  try{
+    const result=await Tesseract.recognize(imgDataUrl, 'eng', {
+      logger: m => {
+        if(m.status === 'recognizing text' && typeof m.progress === 'number'){
+          btn.innerHTML=`<span class="spinner"></span>Reading quote... ${Math.round(m.progress*100)}%`;
+        }
+      }
+    });
+
+    const text=result?.data?.text || '';
+    const items=extractItemsFromText(text);
+
+    if(!items.length){
+      document.getElementById('scan-err').innerHTML='<div class="warn">No line items were confidently detected. Try a tighter crop of just the item table, then scan again.</div>';
+      btn.innerHTML='Scan quote for line items';
+      return;
+    }
+
+    document.getElementById('lines').innerHTML='';
+    lineCount=0;
+    items.slice(0,30).forEach(item=>addLine(item.service,item.description,item.qty,item.rate));
+    calcTotal();
+    document.getElementById('scan-err').innerHTML=`<div class="ok">Imported ${items.length} line item${items.length===1?'':'s'} locally in your browser.</div>`;
+    btn.innerHTML='Re-scan image';
+  }catch(e){
+    document.getElementById('scan-err').innerHTML=`<div class="err">Could not read line items locally: ${e.message}</div>`;
+    btn.innerHTML='Scan quote for line items';
+  }finally{
+    btn.disabled=false;
+  }
+}
+
 function addLine(svc='',desc='',qty='',rate=''){
   if(lineCount>=30)return;
   const id='line-'+lineCount++;
@@ -299,7 +392,6 @@ function getBillTo(){
   }
 }
 
-// ── PDF ─────────────────────────────────────────────────
 function generatePDF(){
   const{jsPDF}=window.jspdf;
   const doc=new jsPDF({unit:'pt',format:'letter'});
@@ -308,7 +400,6 @@ function generatePDF(){
   const isInvoice=docType==='invoice';
   const isCM=docType==='cm';
 
-  // Header
   doc.setFontSize(26).setFont('helvetica','bold').setTextColor(23,100,196);
   doc.text('remi',W-mg,52,{align:'right'});
   doc.setTextColor(30,30,30).setFontSize(13).setFont('helvetica','bold');
@@ -319,10 +410,8 @@ function generatePDF(){
   doc.text('payton@remihq.com',mg,75);
   doc.setTextColor(30,30,30);
 
-  // Info box
   const boxY=96,boxH=126;
   doc.setFillColor(240,247,253).roundedRect(mg,boxY,W-mg*2,boxH,6,6,'F');
-
   const docLabel=isReceipt?'Receipt':isCM?'Credit Memo':'Invoice';
   doc.setFontSize(22).setFont('helvetica','bold').setTextColor(30,30,30);
   doc.text(docLabel,mg+20,boxY+30);
@@ -360,17 +449,15 @@ function generatePDF(){
     doc.text(dueStr,rx,boxY+104,{align:'right'});
   }
 
-  // Line items table
   const C={svc:{x:mg+12,w:115},desc:{x:mg+140,w:138},qty:{x:mg+292,w:52},rate:{x:mg+354,w:68},tot:{x:W-mg-12}};
   const LH=13,RP=16;
   let y=boxY+boxH+18;
 
   doc.setFillColor(245,245,243).rect(mg,y,W-mg*2,22,'F');
   doc.setFontSize(10).setFont('helvetica','bold').setTextColor(75,75,75);
-  const qtyLabel=isReceipt?'Qty.':'Qty';
   doc.text('Service',C.svc.x,y+15);
   doc.text('Description',C.desc.x,y+15);
-  doc.text(qtyLabel,C.qty.x,y+15);
+  doc.text(isReceipt?'Qty.':'Qty',C.qty.x,y+15);
   doc.text('Rate',C.rate.x,y+15);
   doc.text('Total',C.tot.x,y+15,{align:'right'});
   y+=24;
@@ -410,7 +497,6 @@ function generatePDF(){
     y+=rowH;
   }
 
-  // ── Receipt summary section ──────────────────────────
   if(isReceipt){
     const paid=parseFloat(document.getElementById('amt-paid').value)||0;
     const bal=grandTotal-paid;
@@ -420,48 +506,33 @@ function generatePDF(){
     const colDate=W-mg-120;
     const colVal=W-mg-12;
     const rowH=28;
-
-    // push way down like template — receipt has lots of white space above summary
     y+=100;
-
-    // ── Row 1: divider + Total Billed ──
     doc.setDrawColor(215,215,215);
     doc.line(mg,y,W-mg,y);
     y+=rowH;
     doc.setFontSize(10).setFont('helvetica','normal').setTextColor(110,110,110);
     doc.text('Total Billed',colLabel,y,{align:'right'});
-    doc.setTextColor(30,30,30).setFont('helvetica','normal');
+    doc.setTextColor(30,30,30);
     doc.text(fmtM(grandTotal),colVal,y,{align:'right'});
-
-    // ── Row 2: divider + Amount Paid + date + negative amount ──
     y+=8;
     doc.setDrawColor(215,215,215);
     doc.line(mg,y,W-mg,y);
     y+=rowH;
-    doc.setFontSize(10).setFont('helvetica','normal').setTextColor(110,110,110);
+    doc.setTextColor(110,110,110);
     doc.text('Amount Paid',colLabel,y,{align:'right'});
-    if(payDateStr){
-      doc.setTextColor(100,100,100);
-      doc.text(payDateStr,colDate,y);
-    }
+    if(payDateStr){doc.setTextColor(100,100,100);doc.text(payDateStr,colDate,y);}
     doc.setTextColor(30,30,30);
     doc.text((paid>0?'-':'')+fmtM(paid),colVal,y,{align:'right'});
-
-    // ── Row 3: divider ──
     y+=10;
     doc.setDrawColor(215,215,215);
     doc.line(mg,y,W-mg,y);
     y+=10;
-
-    // ── Row 4: Balance box ──
     doc.setFillColor(240,247,253).roundedRect(mg,y,W-mg*2,44,6,6,'F');
     doc.setFontSize(11).setFont('helvetica','normal').setTextColor(100,100,100);
     doc.text('Balance (USD)',mg+20,y+28);
     doc.setFontSize(20).setFont('helvetica','bold').setTextColor(30,30,30);
     doc.text('$ '+Math.abs(bal).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),colVal,y+30,{align:'right'});
-
-  } else {
-    // Standard invoice/CM total box
+  }else{
     y+=18;
     doc.setFillColor(237,244,252).roundedRect(W-mg-190,y,190,48,6,6,'F');
     doc.setFontSize(10).setFont('helvetica','normal').setTextColor(110,110,110);
@@ -474,7 +545,6 @@ function generatePDF(){
   doc.save(fname);
 }
 
-// ── Init ────────────────────────────────────────────────
 const today=new Date().toISOString().split('T')[0];
 document.getElementById('issue-date').value=today;
 document.getElementById('pay-date').value=today;

@@ -15,7 +15,6 @@ label:first-of-type{margin-top:0}
 input,select{width:100%;padding:8px 10px;border:0.5px solid #ccc;border-radius:6px;font-size:13px;font-family:sans-serif;background:#fff;color:#222}
 input:focus{outline:none;border-color:#888}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
 .toggle-row{display:flex;gap:12px;margin-bottom:12px}
 .toggle-btn{flex:1;padding:8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;color:#555}
 .toggle-btn.active{border-color:#222;background:#222;color:#fff}
@@ -34,7 +33,6 @@ input:focus{outline:none;border-color:#888}
 .total-amount{font-size:22px;font-weight:500}
 .generate-btn{width:100%;padding:12px;background:#222;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;margin-top:8px}
 .generate-btn:hover{background:#444}
-.generate-btn:disabled{background:#bbb;cursor:not-allowed}
 .cm-note{background:#faeeda;border:0.5px solid #fac775;border-radius:6px;padding:10px 14px;font-size:12px;color:#633806;margin-bottom:12px}
 .drop-zone{border:1.5px dashed #ccc;border-radius:10px;padding:28px;text-align:center;cursor:pointer;background:#fafaf9;position:relative}
 .drop-zone:hover,.drop-zone.drag-over{border-color:#1764c4;background:#f0f6ff}
@@ -104,14 +102,14 @@ input:focus{outline:none;border-color:#888}
   <div class="drop-zone" id="drop-zone">
     <input type="file" accept="image/*" id="img-input" onchange="handleFile(this.files[0])">
     <div class="drop-label">Drop a quote screenshot here</div>
-    <div class="drop-sub">or click to browse — PNG, JPG, WEBP</div>
+    <div class="drop-sub">or click to browse - PNG, JPG, WEBP</div>
   </div>
   <div class="preview-wrap" id="preview-wrap">
     <img id="preview-img" src="" alt="Quote preview">
-    <button class="clear-img" onclick="clearImage()">×</button>
+    <button class="clear-img" onclick="clearImage()">x</button>
   </div>
   <button class="scan-btn" id="scan-btn" onclick="scanImageLocal()" style="display:none">Scan quote for line items</button>
-  <p class="scan-note" id="scan-note" style="display:none">AI will detect the line-item headers first, then map qty, unit price, and totals into the correct fields.</p>
+  <p class="scan-note" id="scan-note" style="display:none">Reads line items from your screenshot automatically.</p>
   <div id="scan-err"></div>
 </div>
 
@@ -121,7 +119,7 @@ input:focus{outline:none;border-color:#888}
     <span>Service</span><span>Description</span><span>Qty</span><span>Rate</span><span>Total</span><span></span>
   </div>
   <div id="lines"></div>
-  <button class="add-btn" onclick="addLine()">+ Add line item</button>
+  <button class="add-btn" onclick="addLine('','','','')">+ Add line item</button>
   <div class="total-row">
     <div class="total-box">
       <div class="total-label">Total (USD)</div>
@@ -130,7 +128,6 @@ input:focus{outline:none;border-color:#888}
   </div>
 </div>
 
-<!-- Receipt-only payment summary -->
 <div class="card" id="receipt-summary-card" style="display:none">
   <h3>Payment summary</h3>
   <div class="receipt-summary">
@@ -152,469 +149,455 @@ input:focus{outline:none;border-color:#888}
 <button class="generate-btn" onclick="generatePDF()">Generate PDF</button>
 
 <script>
-let docType='invoice', billType='sunrun', lineCount=0, imgBase64=null, imgType=null, imgDataUrl=null;
+var docType = 'invoice';
+var billType = 'sunrun';
+var lineCount = 0;
+var imgBase64 = null;
+var imgType = null;
+var imgDataUrl = null;
 
-function setDocType(t,btn){
-  docType=t;
-  document.querySelectorAll('.doc-btn').forEach(b=>b.classList.remove('active'));
+function setDocType(t, btn) {
+  docType = t;
+  var btns = document.querySelectorAll('.doc-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
   btn.classList.add('active');
-  document.getElementById('cm-note').style.display=t==='cm'?'block':'none';
-  document.getElementById('due-row').style.display=t==='invoice'?'grid':'none';
-  document.getElementById('receipt-summary-card').style.display=t==='receipt'?'block':'none';
-  document.getElementById('docnum-label').textContent=t==='receipt'?'Receipt number':'Document number';
-  const ph={'invoice':'REMI-142140','cm':'REMI-CM-001','receipt':'REMI-123097'};
-  document.getElementById('doc-num').placeholder=ph[t];
+  document.getElementById('cm-note').style.display = (t === 'cm') ? 'block' : 'none';
+  document.getElementById('due-row').style.display = (t === 'invoice') ? 'grid' : 'none';
+  document.getElementById('receipt-summary-card').style.display = (t === 'receipt') ? 'block' : 'none';
+  document.getElementById('docnum-label').textContent = (t === 'receipt') ? 'Receipt number' : 'Document number';
+  var placeholders = {invoice: 'REMI-142140', cm: 'REMI-CM-001', receipt: 'REMI-123097'};
+  document.getElementById('doc-num').placeholder = placeholders[t];
   updateBalance();
 }
-function setBillType(t,btn){
-  billType=t;
-  document.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active'));
+
+function setBillType(t, btn) {
+  billType = t;
+  var btns = document.querySelectorAll('.toggle-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
   btn.classList.add('active');
-  document.getElementById('sunrun-fields').style.display=t==='sunrun'?'block':'none';
-  document.getElementById('standard-fields').style.display=t==='standard'?'block':'none';
+  document.getElementById('sunrun-fields').style.display = (t === 'sunrun') ? 'block' : 'none';
+  document.getElementById('standard-fields').style.display = (t === 'standard') ? 'block' : 'none';
 }
 
-// ── Image ───────────────────────────────────────────────
-const dz=document.getElementById('drop-zone');
-dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over')});
-dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
-dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0])});
-function handleFile(file){
-  if(!file||!file.type.startsWith('image/'))return;
-  imgType=file.type;
-  const r=new FileReader();
-  r.onload=e=>{
-    imgDataUrl=e.target.result;
-    imgBase64=e.target.result.split(',')[1];
-    document.getElementById('preview-img').src=e.target.result;
-    document.getElementById('preview-wrap').style.display='block';
-    document.getElementById('scan-btn').style.display='block';
-    document.getElementById('scan-note').style.display='block';
+var dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', function(e) { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', function() { dz.classList.remove('drag-over'); });
+dz.addEventListener('drop', function(e) {
+  e.preventDefault();
+  dz.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+function handleFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  imgType = file.type;
+  var r = new FileReader();
+  r.onload = function(e) {
+    imgDataUrl = e.target.result;
+    imgBase64 = e.target.result.split(',')[1];
+    document.getElementById('preview-img').src = e.target.result;
+    document.getElementById('preview-wrap').style.display = 'block';
+    document.getElementById('scan-btn').style.display = 'block';
+    document.getElementById('scan-note').style.display = 'block';
   };
   r.readAsDataURL(file);
 }
-function clearImage(){
-  imgBase64=null;imgType=null;imgDataUrl=null;
-  document.getElementById('preview-wrap').style.display='none';
-  document.getElementById('scan-btn').style.display='none';
-  document.getElementById('scan-note').style.display='none';
-  document.getElementById('img-input').value='';
-  document.getElementById('scan-err').innerHTML='';
+
+function clearImage() {
+  imgBase64 = null; imgType = null; imgDataUrl = null;
+  document.getElementById('preview-wrap').style.display = 'none';
+  document.getElementById('scan-btn').style.display = 'none';
+  document.getElementById('scan-note').style.display = 'none';
+  document.getElementById('img-input').value = '';
+  document.getElementById('scan-err').innerHTML = '';
 }
-function asNumber(v){
-  if(v===null||v===undefined||v==='')return null;
-  if(typeof v==='number')return Number.isFinite(v)?v:null;
-  const s=String(v).replace(/[,$%\s]/g,'').replace(/\(([^)]+)\)/,'-$1');
-  const n=parseFloat(s);
-  return Number.isFinite(n)?n:null;
+
+function asNum(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'number') return isFinite(v) ? v : null;
+  var s = String(v).replace(/[,$%\s]/g, '').replace(/\(([^)]+)\)/, '-$1');
+  var n = parseFloat(s);
+  return isFinite(n) ? n : null;
 }
-function roundMoney(n){return Math.round((n+Number.EPSILON)*100)/100;}
-function nearlyEqual(a,b,tol=0.02){return Math.abs((a??0)-(b??0))<=tol;}
-function isLikelyQty(n){
-  if(n===null||n===undefined)return false;
-  return n>0 && n<=1000 && nearlyEqual(n,Math.round(n),0.0001);
-}
-function swapQtyRateIfNeeded(qty,rate,total){
-  if(qty===null||rate===null)return {qty,rate};
-  const qtyLooksBad = qty>100 && !isLikelyQty(qty);
-  const rateLooksLikeQty = isLikelyQty(rate) && rate<=25;
-  const qtyLooksLikeMoney = !isLikelyQty(qty) || qty>=50;
-  if(qtyLooksBad || (qtyLooksLikeMoney && rateLooksLikeQty)){
-    const swapped={qty:rate,rate:qty};
-    if(total===null||nearlyEqual(roundMoney(swapped.qty*swapped.rate),Math.abs(total),0.05)) return swapped;
+function roundM(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+function nearEq(a, b, tol) { tol = tol || 0.02; return Math.abs((a || 0) - (b || 0)) <= tol; }
+function likelyQty(n) { return n !== null && n > 0 && n <= 1000 && nearEq(n, Math.round(n), 0.0001); }
+
+function fixSwap(qty, rate, total) {
+  if (qty === null || rate === null) return {qty: qty, rate: rate};
+  if ((qty > 100 && !likelyQty(qty)) || ((!likelyQty(qty) || qty >= 50) && likelyQty(rate) && rate <= 25)) {
+    var sw = {qty: rate, rate: qty};
+    if (total === null || nearEq(roundM(sw.qty * sw.rate), Math.abs(total), 0.05)) return sw;
   }
-  return {qty,rate};
-}
-function normalizeScannedItem(raw){
-  const service=(raw.service||raw.name||raw.item||raw.title||'').toString().trim();
-  const description=(raw.description||raw.desc||raw.details||service||'').toString().trim();
-  let qty=asNumber(raw.qty ?? raw.quantity ?? raw.units ?? raw.count);
-  let rate=asNumber(raw.rate ?? raw.unit_price ?? raw.unitPrice ?? raw.price ?? raw.unitcost ?? raw.unit_cost);
-  let total=asNumber(raw.total ?? raw.amount ?? raw.line_total ?? raw.extended ?? raw.extended_price);
-
-  if(total!==null) total=Math.abs(total);
-  if(qty!==null) qty=Math.abs(qty);
-  if(rate!==null) rate=Math.abs(rate);
-
-  ({qty,rate}=swapQtyRateIfNeeded(qty,rate,total));
-
-  if(total!==null && qty!==null && rate===null && qty!==0) rate=roundMoney(total/qty);
-  if(total!==null && rate!==null && qty===null && rate!==0) qty=roundMoney(total/rate);
-  if((qty===null||qty===0) && rate!==null && total!==null && nearlyEqual(rate,total,0.05)) qty=1;
-  if((rate===null||rate===0) && qty!==null && total!==null && nearlyEqual(qty,total,0.05)) rate=1;
-  if(qty===null||qty<=0) qty=1;
-  if(rate===null||rate<0) rate=0;
-
-  if(total!==null && !nearlyEqual(roundMoney(qty*rate),total,0.05)){
-    if(qty && total) rate=roundMoney(total/qty);
-    else if(rate && total) qty=roundMoney(total/rate);
-  }
-
-  return {service,description,qty,rate,total};
+  return {qty: qty, rate: rate};
 }
 
-function looksLikeQtyToken(v){
-  return /^\d+(?:\.\d+)?$/.test(String(v||'').trim());
-}
-function isSummaryRowText(s){
-  return /(subtotal|tax|discount|balance due|grand total|total due|amount due|payment total|amount paid|deposit|shipping)/i.test(String(s||''));
+function normItem(raw) {
+  var svc = (raw.service || raw.name || '').toString().trim();
+  var desc = (raw.description || svc).toString().trim();
+  var qty = asNum(raw.qty != null ? raw.qty : raw.quantity);
+  var rate = asNum(raw.rate != null ? raw.rate : raw.unit_price != null ? raw.unit_price : raw.price);
+  var tot = asNum(raw.total != null ? raw.total : raw.amount);
+  if (tot !== null) tot = Math.abs(tot);
+  if (qty !== null) qty = Math.abs(qty);
+  if (rate !== null) rate = Math.abs(rate);
+  var sw = fixSwap(qty, rate, tot); qty = sw.qty; rate = sw.rate;
+  if (tot !== null && qty !== null && rate === null && qty !== 0) rate = roundM(tot / qty);
+  if (tot !== null && rate !== null && qty === null && rate !== 0) qty = roundM(tot / rate);
+  if (!qty || qty <= 0) qty = 1;
+  if (rate === null || rate < 0) rate = 0;
+  return {service: svc, description: desc, qty: qty, rate: rate};
 }
 
-function toNumber(v){
-  return asNumber(v);
+function isSummary(s) {
+  return /(subtotal|tax|discount|balance due|grand total|total due|amount due|payment total|amount paid|deposit|shipping)/i.test(String(s || ''));
 }
-function looksMoney(v){
-  const s=String(v||'').trim();
-  if(!s) return false;
-  if(/[%]/.test(s)) return false;
+function isMoney(v) {
+  var s = String(v || '').trim();
+  if (!s || /[%]/.test(s)) return false;
   return /^\(?-?\$?\d{1,3}(?:,\d{3})*(?:\.\d{2})?\)?$/.test(s) || /^\(?-?\$?\d+(?:\.\d{2})?\)?$/.test(s);
 }
-function extractItemsFromText(text){
-  const lines=String(text||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
-  const items=[];
+function isQtyTok(v) { return /^\d+(?:\.\d+)?$/.test(String(v || '').trim()); }
 
-  for(const raw of lines){
-    const line=raw.replace(/\s+/g,' ').trim();
-    if(!line || isSummaryRowText(line)) continue;
-
-    const tokens=line.split(' ');
-    const moneyIdxs=[];
-    for(let i=0;i<tokens.length;i++){
-      if(looksMoney(tokens[i])) moneyIdxs.push(i);
+function parseText(text) {
+  var lines = String(text || '').split(/\r?\n/).map(function(x) { return x.trim(); }).filter(Boolean);
+  var items = [];
+  for (var li = 0; li < lines.length; li++) {
+    var line = lines[li].replace(/\s+/g, ' ').trim();
+    if (!line || isSummary(line)) continue;
+    var toks = line.split(' ');
+    var mIdx = [];
+    for (var i = 0; i < toks.length; i++) { if (isMoney(toks[i])) mIdx.push(i); }
+    if (!mIdx.length) continue;
+    var totIdx = mIdx[mIdx.length - 1];
+    var rateIdx = mIdx.length >= 2 ? mIdx[mIdx.length - 2] : -1;
+    var tot = asNum(toks[totIdx]);
+    var rate = rateIdx >= 0 ? asNum(toks[rateIdx]) : null;
+    var qty = null; var qIdx = -1;
+    var st = Math.max(0, rateIdx > 0 ? rateIdx - 2 : totIdx - 3);
+    for (var j = st; j < totIdx; j++) {
+      if (isQtyTok(toks[j]) && !isMoney(toks[j])) { qty = asNum(toks[j]); qIdx = j; break; }
     }
-    if(moneyIdxs.length===0) continue;
-
-    const totalIdx=moneyIdxs[moneyIdxs.length-1];
-    let rateIdx=moneyIdxs.length>=2 ? moneyIdxs[moneyIdxs.length-2] : -1;
-
-    let total=toNumber(tokens[totalIdx]);
-    let rate=rateIdx>=0 ? toNumber(tokens[rateIdx]) : null;
-    let qty=null;
-    let qtyIdx=-1;
-
-    for(let i=Math.max(0, rateIdx>0 ? rateIdx-2 : totalIdx-3); i<totalIdx; i++){
-      if(looksLikeQtyToken(tokens[i]) && !looksMoney(tokens[i])){
-        qty=toNumber(tokens[i]);
-        qtyIdx=i;
-        break;
-      }
-    }
-
-    let descCut=totalIdx;
-    if(qtyIdx>=0) descCut=Math.min(descCut, qtyIdx);
-    else if(rateIdx>=0) descCut=Math.min(descCut, rateIdx);
-
-    let description=tokens.slice(0, Math.max(0, descCut)).join(' ').trim();
-    if(!description || description.length<2 || isSummaryRowText(description)) continue;
-
-    const item=normalizeScannedItem({service:description,description,qty,rate,total});
-    if(isSummaryRowText(item.service) || isSummaryRowText(item.description)) continue;
-    if(!item.service && !item.description) continue;
+    var cut = totIdx;
+    if (qIdx >= 0) cut = Math.min(cut, qIdx);
+    else if (rateIdx >= 0) cut = Math.min(cut, rateIdx);
+    var desc = toks.slice(0, Math.max(0, cut)).join(' ').trim();
+    if (!desc || desc.length < 2 || isSummary(desc)) continue;
+    var item = normItem({service: desc, description: desc, qty: qty, rate: rate, total: tot});
+    if (isSummary(item.service)) continue;
     items.push(item);
   }
-
-  const deduped=[];
-  const seen=new Set();
-  for(const item of items){
-    const key=`${item.description}|${item.qty}|${item.rate}|${item.total}`;
-    if(seen.has(key)) continue;
-    seen.add(key);
-    deduped.push(item);
+  var out = []; var seen = {};
+  for (var k = 0; k < items.length; k++) {
+    var key = items[k].description + '|' + items[k].qty + '|' + items[k].rate;
+    if (seen[key]) continue;
+    seen[key] = true; out.push(items[k]);
   }
-  return deduped;
+  return out;
 }
 
-async function scanImageLocal(){
-  if(!imgDataUrl){
-    document.getElementById('scan-err').innerHTML='<div class="err">Please upload an image first.</div>';
-    return;
-  }
-  const btn=document.getElementById('scan-btn');
-  btn.disabled=true;
-  btn.innerHTML='<span class="spinner"></span>Reading line items...';
-  document.getElementById('scan-err').innerHTML='';
-
-  try{
-    const result=await Tesseract.recognize(imgDataUrl, 'eng', {
-      logger: m => {
-        if(m.status === 'recognizing text' && typeof m.progress === 'number'){
-          btn.innerHTML=`<span class="spinner"></span>Reading line items... ${Math.round(m.progress*100)}%`;
+async function scanImageLocal() {
+  if (!imgDataUrl) { document.getElementById('scan-err').innerHTML = '<div class="err">Please upload an image first.</div>'; return; }
+  var btn = document.getElementById('scan-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Reading line items...';
+  document.getElementById('scan-err').innerHTML = '';
+  try {
+    var result = await Tesseract.recognize(imgDataUrl, 'eng', {
+      logger: function(m) {
+        if (m.status === 'recognizing text' && typeof m.progress === 'number') {
+          btn.innerHTML = '<span class="spinner"></span>Reading... ' + Math.round(m.progress * 100) + '%';
         }
       }
     });
-
-    const text=result?.data?.text || '';
-    const items=extractItemsFromText(text);
-
-    if(!items.length) throw new Error('No usable line items found.');
-
-    document.getElementById('lines').innerHTML='';
-    lineCount=0;
-    items.slice(0,30).forEach(item=>addLine(item.service||'',item.description||item.service||'',item.qty??1,item.rate??0));
+    var text = (result && result.data && result.data.text) ? result.data.text : '';
+    var items = parseText(text);
+    if (!items.length) throw new Error('No usable line items found.');
+    document.getElementById('lines').innerHTML = '';
+    lineCount = 0;
+    for (var i = 0; i < Math.min(items.length, 30); i++) {
+      addLine(items[i].service, items[i].description, items[i].qty, items[i].rate);
+    }
     calcTotal();
-    btn.innerHTML='Re-scan image';
-  }catch(e){
-    document.getElementById('scan-err').innerHTML=`<div class="err">Could not read line items locally: ${e.message}</div>`;
-    btn.innerHTML='Scan quote for line items';
-  }finally{
-    btn.disabled=false;
+    btn.innerHTML = 'Re-scan image';
+  } catch(e) {
+    document.getElementById('scan-err').innerHTML = '<div class="err">Could not read line items: ' + e.message + '</div>';
+    btn.innerHTML = 'Scan quote for line items';
   }
+  btn.disabled = false;
 }
 
-// ── Line items ──────────────────────────────────────────
-function addLine(svc='',desc='',qty='',rate=''){
-  if(lineCount>=30)return;
-  const id='line-'+lineCount++;
-  const div=document.createElement('div');
-  div.className='line-row';div.id=id;
-  div.innerHTML=`
-    <input placeholder="Service name" value="${ea(svc)}" oninput="calcTotal()">
-    <input placeholder="Description" value="${ea(desc)}" oninput="calcTotal()">
-    <input type="number" placeholder="1" min="0" value="${qty}" oninput="calcTotal()">
-    <input type="number" placeholder="0.00" step="0.01" min="0" value="${rate}" oninput="calcTotal()">
-    <input placeholder="$0.00" readonly style="background:#f8f8f6;color:#555">
-    <button class="rm-btn" onclick="removeLine('${id}')">×</button>`;
+function addLine(svc, desc, qty, rate) {
+  if (lineCount >= 30) return;
+  svc = svc || ''; desc = desc || '';
+  qty = (qty !== undefined && qty !== null && qty !== '') ? qty : '';
+  rate = (rate !== undefined && rate !== null && rate !== '') ? rate : '';
+  var id = 'line-' + lineCount++;
+  var div = document.createElement('div');
+  div.className = 'line-row'; div.id = id;
+  var s = svc.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  var d = desc.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  div.innerHTML = '<input placeholder="Service name" value="' + s + '" oninput="calcTotal()">'
+    + '<input placeholder="Description" value="' + d + '" oninput="calcTotal()">'
+    + '<input type="number" placeholder="1" min="0" value="' + qty + '" oninput="calcTotal()">'
+    + '<input type="number" placeholder="0.00" step="0.01" min="0" value="' + rate + '" oninput="calcTotal()">'
+    + '<input placeholder="$0.00" readonly style="background:#f8f8f6;color:#555">'
+    + '<button class="rm-btn" onclick="removeLine(\'' + id + '\')">x</button>';
   document.getElementById('lines').appendChild(div);
   calcTotal();
 }
-function ea(s){return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-function removeLine(id){document.getElementById(id)?.remove();calcTotal();}
-function calcTotal(){
-  let total=0;
-  document.querySelectorAll('#lines .line-row').forEach(row=>{
-    const inp=row.querySelectorAll('input');
-    const qty=parseFloat(inp[2].value)||0;
-    const rate=parseFloat(inp[3].value)||0;
-    const line=qty*rate;
-    inp[4].value=line?'$'+line.toFixed(2):'';
-    total+=line;
-  });
-  document.getElementById('total-display').textContent='$'+total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+function removeLine(id) { var el = document.getElementById(id); if (el) el.remove(); calcTotal(); }
+
+function calcTotal() {
+  var total = 0;
+  var rows = document.querySelectorAll('#lines .line-row');
+  for (var i = 0; i < rows.length; i++) {
+    var inp = rows[i].querySelectorAll('input');
+    var q = parseFloat(inp[2].value) || 0;
+    var r = parseFloat(inp[3].value) || 0;
+    var line = q * r;
+    inp[4].value = line ? ('$' + line.toFixed(2)) : '';
+    total += line;
+  }
+  document.getElementById('total-display').textContent = '$' + total.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
   updateBalance();
 }
-function updateBalance(){
-  if(docType!=='receipt')return;
-  const total=getGrandTotal();
-  const paid=parseFloat(document.getElementById('amt-paid').value)||0;
-  const bal=total-paid;
-  document.getElementById('balance-display').value='$'+bal.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-}
-function getGrandTotal(){
-  let t=0;
-  document.querySelectorAll('#lines .line-row').forEach(row=>{
-    const inp=row.querySelectorAll('input');
-    t+=(parseFloat(inp[2].value)||0)*(parseFloat(inp[3].value)||0);
-  });
-  return t;
-}
-function fmtM(n){return '$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
-function formatDate(d){
-  const[y,m,day]=d.split('-');
-  const mo=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  return mo[parseInt(m)-1]+' '+parseInt(day).toString().padStart(2,'0')+','+y;
-}
-function getBillTo(){
-  if(billType==='sunrun'){
-    const name=document.getElementById('sr-name').value;
-    const sid=document.getElementById('sr-id').value;
-    const a1=document.getElementById('sr-addr1').value;
-    const a2=document.getElementById('sr-addr2').value;
-    const lines=[];
-    if(name||sid)lines.push('Sunrun'+(name?' | '+name:'')+(sid?' | '+sid:''));
-    if(a1)lines.push(a1);if(a2)lines.push(a2);
-    return lines;
-  }else{
-    return[document.getElementById('std-name').value,document.getElementById('std-addr1').value,document.getElementById('std-addr2').value].filter(Boolean);
-  }
+
+function updateBalance() {
+  if (docType !== 'receipt') return;
+  var total = getGrandTotal();
+  var paid = parseFloat(document.getElementById('amt-paid').value) || 0;
+  var bal = total - paid;
+  document.getElementById('balance-display').value = '$' + bal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 
-// ── PDF ─────────────────────────────────────────────────
-function generatePDF(){
-  const{jsPDF}=window.jspdf;
-  const doc=new jsPDF({unit:'pt',format:'letter'});
-  const W=612,mg=50;
-  const isReceipt=docType==='receipt';
-  const isInvoice=docType==='invoice';
-  const isCM=docType==='cm';
+function getGrandTotal() {
+  var t = 0;
+  var rows = document.querySelectorAll('#lines .line-row');
+  for (var i = 0; i < rows.length; i++) {
+    var inp = rows[i].querySelectorAll('input');
+    t += (parseFloat(inp[2].value) || 0) * (parseFloat(inp[3].value) || 0);
+  }
+  return t;
+}
+
+function fmtM(n) { return '$' + Math.abs(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+function formatDate(d) {
+  var p = d.split('-');
+  var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return months[parseInt(p[1]) - 1] + ' ' + parseInt(p[2]).toString().padStart(2,'0') + ', ' + p[0];
+}
+
+function formatDateShort(d) {
+  var p = d.split('-');
+  return p[1] + '/' + p[2] + '/' + p[0];
+}
+
+function getBillTo() {
+  if (billType === 'sunrun') {
+    var name = document.getElementById('sr-name').value;
+    var sid = document.getElementById('sr-id').value;
+    var a1 = document.getElementById('sr-addr1').value;
+    var a2 = document.getElementById('sr-addr2').value;
+    var lines = [];
+    if (name || sid) lines.push('Sunrun' + (name ? ' | ' + name : '') + (sid ? ' | ' + sid : ''));
+    if (a1) lines.push(a1);
+    if (a2) lines.push(a2);
+    return lines;
+  }
+  return [
+    document.getElementById('std-name').value,
+    document.getElementById('std-addr1').value,
+    document.getElementById('std-addr2').value
+  ].filter(Boolean);
+}
+
+function generatePDF() {
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = new jsPDF({unit:'pt', format:'letter'});
+  var W = 612, mg = 50;
+  var isReceipt = (docType === 'receipt');
+  var isInvoice = (docType === 'invoice');
+  var isCM = (docType === 'cm');
 
   // Header
   doc.setFontSize(26).setFont('helvetica','bold').setTextColor(23,100,196);
-  doc.text('remi',W-mg,52,{align:'right'});
+  doc.text('remi', W - mg, 52, {align:'right'});
   doc.setTextColor(30,30,30).setFontSize(13).setFont('helvetica','bold');
-  doc.text('Remi Roofing & Construction, Inc',mg,48);
+  doc.text('Remi Roofing & Construction, Inc', mg, 48);
   doc.setFontSize(10).setFont('helvetica','normal');
-  doc.text('1850 Ashton Ave, Lehi, UT 84043',mg,62);
+  doc.text('1850 Ashton Ave, Lehi, UT 84043', mg, 62);
   doc.setTextColor(0,102,204);
-  doc.text('payton@remihq.com',mg,75);
+  doc.text('payton@remihq.com', mg, 75);
   doc.setTextColor(30,30,30);
 
   // Info box
-  const boxY=96,boxH=126;
-  doc.setFillColor(240,247,253).roundedRect(mg,boxY,W-mg*2,boxH,6,6,'F');
-
-  const docLabel=isReceipt?'Receipt':isCM?'Credit Memo':'Invoice';
+  var boxY = 96, boxH = 126;
+  doc.setFillColor(240,247,253).roundedRect(mg, boxY, W - mg*2, boxH, 6, 6, 'F');
+  var docLabel = isReceipt ? 'Receipt' : isCM ? 'Credit Memo' : 'Invoice';
   doc.setFontSize(22).setFont('helvetica','bold').setTextColor(30,30,30);
-  doc.text(docLabel,mg+20,boxY+30);
+  doc.text(docLabel, mg + 20, boxY + 30);
 
-  const billTo=getBillTo();
+  var billTo = getBillTo();
   doc.setFontSize(9).setFont('helvetica','normal').setTextColor(110,110,110);
-  doc.text('Billed to:',mg+20,boxY+52);
+  doc.text('Billed to:', mg + 20, boxY + 52);
   doc.setFontSize(11).setFont('helvetica','bold').setTextColor(30,30,30);
-  if(billTo[0])doc.text(billTo[0],mg+20,boxY+66);
+  if (billTo[0]) doc.text(billTo[0], mg + 20, boxY + 66);
   doc.setFont('helvetica','normal').setFontSize(10);
-  if(billTo[1])doc.text(billTo[1],mg+20,boxY+80);
-  if(billTo[2])doc.text(billTo[2],mg+20,boxY+94);
+  if (billTo[1]) doc.text(billTo[1], mg + 20, boxY + 80);
+  if (billTo[2]) doc.text(billTo[2], mg + 20, boxY + 94);
 
-  const docNum=document.getElementById('doc-num').value||(isReceipt?'REMI-XXXXXX':isCM?'REMI-CM-XXX':'REMI-XXXXXX');
-  const issueVal=document.getElementById('issue-date').value;
-  const issueStr=issueVal?formatDate(issueVal):'—';
-  const rx=W-mg-20;
-  const numLabel=isReceipt?'Receipt No.':'Document No.';
+  var docNum = document.getElementById('doc-num').value || (isReceipt ? 'REMI-XXXXXX' : isCM ? 'REMI-CM-XXX' : 'REMI-XXXXXX');
+  var issueVal = document.getElementById('issue-date').value;
+  var issueStr = issueVal ? formatDate(issueVal) : '--';
+  var rx = W - mg - 20;
 
   doc.setFontSize(9).setFont('helvetica','normal').setTextColor(110,110,110);
-  doc.text(numLabel,rx,boxY+18,{align:'right'});
+  doc.text(isReceipt ? 'Receipt No.' : 'Document No.', rx, boxY + 18, {align:'right'});
   doc.setFontSize(13).setFont('helvetica','bold').setTextColor(30,30,30);
-  doc.text(docNum,rx,boxY+32,{align:'right'});
+  doc.text(docNum, rx, boxY + 32, {align:'right'});
   doc.setFontSize(9).setFont('helvetica','normal').setTextColor(110,110,110);
-  doc.text('Issued on',rx,boxY+56,{align:'right'});
+  doc.text('Issued on', rx, boxY + 56, {align:'right'});
   doc.setFontSize(11).setFont('helvetica','bold').setTextColor(30,30,30);
-  doc.text(issueStr,rx,boxY+70,{align:'right'});
+  doc.text(issueStr, rx, boxY + 70, {align:'right'});
 
-  if(isInvoice){
-    const dueVal=document.getElementById('due-date').value;
-    const dueStr=dueVal?formatDate(dueVal):'—';
+  if (isInvoice) {
+    var dueVal = document.getElementById('due-date').value;
+    var dueStr = dueVal ? formatDate(dueVal) : '--';
     doc.setFontSize(9).setFont('helvetica','normal').setTextColor(110,110,110);
-    doc.text('Payment due',rx,boxY+90,{align:'right'});
+    doc.text('Payment due', rx, boxY + 90, {align:'right'});
     doc.setFontSize(11).setFont('helvetica','bold').setTextColor(30,30,30);
-    doc.text(dueStr,rx,boxY+104,{align:'right'});
+    doc.text(dueStr, rx, boxY + 104, {align:'right'});
   }
 
-  // Line items table
-  const C={svc:{x:mg+12,w:115},desc:{x:mg+140,w:138},qty:{x:mg+292,w:52},rate:{x:mg+354,w:68},tot:{x:W-mg-12}};
-  const LH=13,RP=16;
-  let y=boxY+boxH+18;
+  // Line items
+  var Cx = {svc: mg+12, desc: mg+140, qty: mg+292, rate: mg+354, tot: W-mg-12};
+  var Cw = {svc: 115, desc: 138};
+  var LH = 11, RP = 13;
+  var y = boxY + boxH + 18;
 
-  doc.setFillColor(245,245,243).rect(mg,y,W-mg*2,22,'F');
-  doc.setFontSize(10).setFont('helvetica','bold').setTextColor(75,75,75);
-  const qtyLabel=isReceipt?'Qty.':'Qty';
-  doc.text('Service',C.svc.x,y+15);
-  doc.text('Description',C.desc.x,y+15);
-  doc.text(qtyLabel,C.qty.x,y+15);
-  doc.text('Rate',C.rate.x,y+15);
-  doc.text('Total',C.tot.x,y+15,{align:'right'});
-  y+=24;
+  doc.setFillColor(245,245,243).rect(mg, y, W - mg*2, 22, 'F');
+  doc.setFontSize(9).setFont('helvetica','bold').setTextColor(75,75,75);
+  doc.text('Service', Cx.svc, y + 15);
+  doc.text('Description', Cx.desc, y + 15);
+  doc.text(isReceipt ? 'Qty.' : 'Qty', Cx.qty, y + 15);
+  doc.text('Rate', Cx.rate, y + 15);
+  doc.text('Total', Cx.tot, y + 15, {align:'right'});
+  y += 24;
 
-  let grandTotal=0;
-  const lineEls=document.querySelectorAll('#lines .line-row');
-  lineEls.forEach(row=>{
-    const inp=row.querySelectorAll('input');
-    const svc=inp[0].value||'-';
-    const desc=inp[1].value||'-';
-    const qty=parseFloat(inp[2].value)||0;
-    const rate=parseFloat(inp[3].value)||0;
-    const lt=qty*rate;
-    grandTotal+=lt;
-    doc.setFontSize(10).setFont('helvetica','normal').setTextColor(30,30,30);
-    const svcL=doc.splitTextToSize(svc,C.svc.w);
-    const descL=doc.splitTextToSize(desc,C.desc.w);
-    const nL=Math.max(svcL.length,descL.length,1);
-    const rowH=nL*LH+RP;
-    const ty=y+rowH-RP-(nL-1)*LH;
-    doc.text(svcL,C.svc.x,ty);
-    doc.text(descL,C.desc.x,ty);
-    doc.text(qty?String(qty):'-',C.qty.x,ty);
-    doc.text(rate?fmtM(rate):'-',C.rate.x,ty);
-    doc.text(lt?fmtM(lt):'-',C.tot.x,ty,{align:'right'});
+  var grandTotal = 0;
+  var lineEls = document.querySelectorAll('#lines .line-row');
+  for (var li = 0; li < lineEls.length; li++) {
+    var inp = lineEls[li].querySelectorAll('input');
+    var svc = inp[0].value || '-';
+    var desc = inp[1].value || '-';
+    var qty = parseFloat(inp[2].value) || 0;
+    var rate = parseFloat(inp[3].value) || 0;
+    var lt = qty * rate;
+    grandTotal += lt;
+    doc.setFontSize(9).setFont('helvetica','normal').setTextColor(30,30,30);
+    var svcL = doc.splitTextToSize(svc, Cw.svc);
+    var descL = doc.splitTextToSize(desc, Cw.desc);
+    var nL = Math.max(svcL.length, descL.length, 1);
+    var rowH = nL * LH + RP;
+    var ty = y + rowH - RP - (nL - 1) * LH;
+    doc.text(svcL, Cx.svc, ty);
+    doc.text(descL, Cx.desc, ty);
+    doc.text(qty ? String(qty) : '-', Cx.qty, ty);
+    doc.text(rate ? fmtM(rate) : '-', Cx.rate, ty);
+    doc.text(lt ? fmtM(lt) : '-', Cx.tot, ty, {align:'right'});
     doc.setDrawColor(215,215,215);
-    doc.line(mg,y+rowH,W-mg,y+rowH);
-    y+=rowH;
-  });
-  for(let i=lineEls.length;i<2;i++){
-    const rowH=LH+RP;
-    doc.setFontSize(10).setTextColor(185,185,185);
-    doc.text('-',C.svc.x,y+LH+RP-4);
-    doc.text('-',C.desc.x,y+LH+RP-4);
+    doc.line(mg, y + rowH, W - mg, y + rowH);
+    y += rowH;
+  }
+  for (var fi = lineEls.length; fi < 2; fi++) {
+    var fRowH = LH + RP;
+    doc.setFontSize(9).setTextColor(185,185,185);
+    doc.text('-', Cx.svc, y + LH + RP - 4);
+    doc.text('-', Cx.desc, y + LH + RP - 4);
     doc.setDrawColor(215,215,215);
-    doc.line(mg,y+rowH,W-mg,y+rowH);
-    y+=rowH;
+    doc.line(mg, y + fRowH, W - mg, y + fRowH);
+    y += fRowH;
   }
 
-  // ── Receipt summary section ──────────────────────────
-  if(isReceipt){
-    const paid=parseFloat(document.getElementById('amt-paid').value)||0;
-    const bal=grandTotal-paid;
-    const payDateVal=document.getElementById('pay-date').value;
-    const payDateStr=payDateVal?formatDate(payDateVal):'';
-    const colLabel=W-mg-195;
-    const colDate=W-mg-120;
-    const colVal=W-mg-12;
-    const rowH=28;
+  if (isReceipt) {
+    var paid = parseFloat(document.getElementById('amt-paid').value) || 0;
+    var payDateVal = document.getElementById('pay-date').value;
+    var payDateStr = payDateVal ? formatDateShort(payDateVal) : '';
+    var colLabel = W - mg - 190;
+    var colDate = W - mg - 95;
+    var colVal = W - mg - 12;
+    var rH = 22;
+    var boxTotalH = rH + 6 + rH + 8 + rH + 10;
+    var pageH = 792, botMg = 50, minPad = 16;
+    var spaceLeft = pageH - botMg - y - boxTotalH;
+    var pad = Math.max(minPad, Math.min(spaceLeft, 80));
+    y += pad;
 
-    // push way down like template — receipt has lots of white space above summary
-    y+=100;
+    // Single blue box around all summary rows
+    doc.setFillColor(240,247,253).roundedRect(mg, y, W - mg*2, boxTotalH, 6, 6, 'F');
 
-    // ── Row 1: divider + Total Billed ──
-    doc.setDrawColor(215,215,215);
-    doc.line(mg,y,W-mg,y);
-    y+=rowH;
-    doc.setFontSize(10).setFont('helvetica','normal').setTextColor(110,110,110);
-    doc.text('Total Billed',colLabel,y,{align:'right'});
-    doc.setTextColor(30,30,30).setFont('helvetica','normal');
-    doc.text(fmtM(grandTotal),colVal,y,{align:'right'});
-
-    // ── Row 2: divider + Amount Paid + date + negative amount ──
-    y+=8;
-    doc.setDrawColor(215,215,215);
-    doc.line(mg,y,W-mg,y);
-    y+=rowH;
-    doc.setFontSize(10).setFont('helvetica','normal').setTextColor(110,110,110);
-    doc.text('Amount Paid',colLabel,y,{align:'right'});
-    if(payDateStr){
-      doc.setTextColor(100,100,100);
-      doc.text(payDateStr,colDate,y);
-    }
+    // Row 1: Total Billed
+    var r1y = y + rH;
+    doc.setFontSize(9).setFont('helvetica','normal').setTextColor(110,110,110);
+    doc.text('Total Billed', colLabel, r1y, {align:'right'});
     doc.setTextColor(30,30,30);
-    doc.text((paid>0?'-':'')+fmtM(paid),colVal,y,{align:'right'});
+    doc.text(fmtM(grandTotal), colVal, r1y, {align:'right'});
 
-    // ── Row 3: divider ──
-    y+=10;
-    doc.setDrawColor(215,215,215);
-    doc.line(mg,y,W-mg,y);
-    y+=10;
+    // Divider
+    var d1y = r1y + 6;
+    doc.setDrawColor(210,228,248);
+    doc.line(mg + 12, d1y, W - mg - 12, d1y);
 
-    // ── Row 4: Balance box ──
-    doc.setFillColor(240,247,253).roundedRect(mg,y,W-mg*2,44,6,6,'F');
-    doc.setFontSize(11).setFont('helvetica','normal').setTextColor(100,100,100);
-    doc.text('Balance (USD)',mg+20,y+28);
-    doc.setFontSize(20).setFont('helvetica','bold').setTextColor(30,30,30);
-    doc.text('$ '+Math.abs(bal).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}),colVal,y+30,{align:'right'});
+    // Row 2: Amount Paid
+    var r2y = d1y + rH;
+    doc.setFontSize(9).setFont('helvetica','normal').setTextColor(110,110,110);
+    doc.text('Amount Paid', colLabel, r2y, {align:'right'});
+    if (payDateStr) {
+      doc.setFontSize(8).setTextColor(120,120,120);
+      doc.text(payDateStr, colDate, r2y, {align:'right'});
+    }
+    doc.setFontSize(9).setTextColor(30,30,30);
+    doc.text((paid > 0 ? '-' : '') + fmtM(paid), colVal, r2y, {align:'right'});
+
+    // Divider
+    var d2y = r2y + 8;
+    doc.setDrawColor(190,215,245);
+    doc.line(mg + 12, d2y, W - mg - 12, d2y);
+
+    // Row 3: Total Amount
+    var r3y = d2y + rH;
+    doc.setFontSize(10).setFont('helvetica','normal').setTextColor(100,100,100);
+    doc.text('Total Amount (USD)', mg + 20, r3y);
+    doc.setFontSize(16).setFont('helvetica','bold').setTextColor(30,30,30);
+    doc.text('$' + grandTotal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}), colVal, r3y, {align:'right'});
 
   } else {
-    // Standard invoice/CM total box
-    y+=18;
-    doc.setFillColor(237,244,252).roundedRect(W-mg-190,y,190,48,6,6,'F');
+    y += 18;
+    doc.setFillColor(237,244,252).roundedRect(W - mg - 190, y, 190, 48, 6, 6, 'F');
     doc.setFontSize(10).setFont('helvetica','normal').setTextColor(110,110,110);
-    doc.text('Total (USD)',W-mg-18,y+16,{align:'right'});
+    doc.text('Total (USD)', W - mg - 18, y + 16, {align:'right'});
     doc.setFontSize(18).setFont('helvetica','bold').setTextColor(30,30,30);
-    doc.text((isCM?'-':'')+fmtM(grandTotal),W-mg-18,y+38,{align:'right'});
+    doc.text((isCM ? '-' : '') + fmtM(grandTotal), W - mg - 18, y + 38, {align:'right'});
   }
 
-  const fname=(document.getElementById('doc-num').value||(isReceipt?'receipt':isCM?'credit-memo':'invoice'))+'.pdf';
+  var fname = (document.getElementById('doc-num').value || (isReceipt ? 'receipt' : isCM ? 'credit-memo' : 'invoice')) + '.pdf';
   doc.save(fname);
 }
 
-// ── Init ────────────────────────────────────────────────
-const today=new Date().toISOString().split('T')[0];
-document.getElementById('issue-date').value=today;
-document.getElementById('pay-date').value=today;
-const due=new Date();due.setDate(due.getDate()+7);
-document.getElementById('due-date').value=due.toISOString().split('T')[0];
-document.getElementById('issue-date').addEventListener('change',function(){
-  const d=new Date(this.value+'T12:00:00');
-  d.setDate(d.getDate()+7);
-  document.getElementById('due-date').value=d.toISOString().split('T')[0];
+var today = new Date().toISOString().split('T')[0];
+document.getElementById('issue-date').value = today;
+document.getElementById('pay-date').value = today;
+var due = new Date();
+due.setDate(due.getDate() + 7);
+document.getElementById('due-date').value = due.toISOString().split('T')[0];
+document.getElementById('issue-date').addEventListener('change', function() {
+  var d = new Date(this.value + 'T12:00:00');
+  d.setDate(d.getDate() + 7);
+  document.getElementById('due-date').value = d.toISOString().split('T')[0];
 });
-addLine();
+addLine('','','','');
 </script>
 </body>
 </html>

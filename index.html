@@ -57,6 +57,12 @@ input:focus{outline:none;border-color:#888}
 .receipt-summary{background:#f8f8f6;border-radius:8px;padding:14px 16px;margin-top:4px}
 .receipt-summary label{margin-top:8px}
 .receipt-summary label:first-of-type{margin-top:0}
+.thumb-gallery{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.thumb-item{position:relative;width:100px;height:80px;border-radius:8px;border:0.5px solid #ddd;overflow:hidden;background:#f8f8f6}
+.thumb-item img{width:100%;height:100%;object-fit:cover}
+.thumb-item .thumb-remove{position:absolute;top:3px;right:3px;background:#fff;border:0.5px solid #ddd;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;color:#666;line-height:1}
+.thumb-item .thumb-remove:hover{border-color:#e24b4a;color:#e24b4a}
+.thumb-item .thumb-scanned{position:absolute;bottom:3px;left:3px;background:#1764c4;color:#fff;font-size:9px;padding:1px 5px;border-radius:4px}
 </style>
 </head>
 <body>
@@ -111,18 +117,15 @@ input:focus{outline:none;border-color:#888}
 </div>
 
 <div class="card">
-  <h3>Import from quote screenshot</h3>
+  <h3>Import from quote screenshots</h3>
   <div class="drop-zone" id="drop-zone">
-    <input type="file" accept="image/*" id="img-input" onchange="handleFile(this.files[0])">
-    <div class="drop-label">Drop a quote screenshot here</div>
-    <div class="drop-sub">or click to browse - PNG, JPG, WEBP</div>
+    <input type="file" accept="image/*" id="img-input" multiple onchange="handleFiles(this.files)">
+    <div class="drop-label">Drop quote screenshots here</div>
+    <div class="drop-sub">or click to browse - PNG, JPG, WEBP (multiple allowed)</div>
   </div>
-  <div class="preview-wrap" id="preview-wrap">
-    <img id="preview-img" src="" alt="Quote preview">
-    <button class="clear-img" onclick="clearImage()">x</button>
-  </div>
-  <button class="scan-btn" id="scan-btn" onclick="scanImageLocal()" style="display:none">Scan quote for line items</button>
-  <p class="scan-note" id="scan-note" style="display:none">Reads line items from your screenshot automatically.</p>
+  <div id="thumb-gallery" class="thumb-gallery"></div>
+  <button class="scan-btn" id="scan-btn" onclick="scanAllImages()" style="display:none">Scan all quotes for line items</button>
+  <p class="scan-note" id="scan-note" style="display:none">Each scan appends new line items to the existing list.</p>
   <div id="scan-err"></div>
 </div>
 
@@ -166,9 +169,114 @@ var docType = 'invoice';
 var billType = 'sunrun';
 var entity = 'rrc';
 var lineCount = 0;
-var imgBase64 = null;
-var imgType = null;
-var imgDataUrl = null;
+var uploadedImages = [];
+
+function handleFiles(files) {
+  for (var i = 0; i < files.length; i++) {
+    handleFile(files[i]);
+  }
+  document.getElementById('img-input').value = '';
+}
+
+function handleFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  var r = new FileReader();
+  r.onload = function(e) {
+    var img = { id: 'img-' + Date.now() + '-' + Math.random().toString(36).slice(2,6), dataUrl: e.target.result, scanned: false };
+    uploadedImages.push(img);
+    renderThumbs();
+    document.getElementById('scan-btn').style.display = 'block';
+    document.getElementById('scan-note').style.display = 'block';
+  };
+  r.readAsDataURL(file);
+}
+
+function removeImage(id) {
+  uploadedImages = uploadedImages.filter(function(img) { return img.id !== id; });
+  renderThumbs();
+  if (!uploadedImages.length) {
+    document.getElementById('scan-btn').style.display = 'none';
+    document.getElementById('scan-note').style.display = 'none';
+  }
+}
+
+function renderThumbs() {
+  var gallery = document.getElementById('thumb-gallery');
+  gallery.innerHTML = '';
+  for (var i = 0; i < uploadedImages.length; i++) {
+    var img = uploadedImages[i];
+    var div = document.createElement('div');
+    div.className = 'thumb-item';
+    div.innerHTML = '<img src="' + img.dataUrl + '" alt="Quote ' + (i+1) + '">'
+      + '<button class="thumb-remove" onclick="removeImage(\'' + img.id + '\')">x</button>'
+      + (img.scanned ? '<span class="thumb-scanned">scanned</span>' : '');
+    gallery.appendChild(div);
+  }
+  updateScanBtnLabel();
+}
+
+function updateScanBtnLabel() {
+  var unscanned = uploadedImages.filter(function(img) { return !img.scanned; });
+  var btn = document.getElementById('scan-btn');
+  if (unscanned.length === 0 && uploadedImages.length > 0) {
+    btn.innerHTML = 'Re-scan all images';
+  } else if (unscanned.length === uploadedImages.length) {
+    btn.innerHTML = 'Scan all quotes for line items';
+  } else {
+    btn.innerHTML = 'Scan ' + unscanned.length + ' new screenshot' + (unscanned.length > 1 ? 's' : '');
+  }
+}
+
+async function scanAllImages() {
+  var toScan = uploadedImages.filter(function(img) { return !img.scanned; });
+  if (!toScan.length) {
+    toScan = uploadedImages;
+    for (var r = 0; r < uploadedImages.length; r++) uploadedImages[r].scanned = false;
+  }
+  if (!toScan.length) { document.getElementById('scan-err').innerHTML = '<div class="err">Please upload an image first.</div>'; return; }
+
+  var btn = document.getElementById('scan-btn');
+  btn.disabled = true;
+  document.getElementById('scan-err').innerHTML = '';
+  var totalItems = 0;
+  var errors = [];
+
+  for (var i = 0; i < toScan.length; i++) {
+    var img = toScan[i];
+    btn.innerHTML = '<span class="spinner"></span>Scanning image ' + (i+1) + ' of ' + toScan.length + '...';
+    try {
+      var result = await Tesseract.recognize(img.dataUrl, 'eng', {
+        logger: function(m) {
+          if (m.status === 'recognizing text' && typeof m.progress === 'number') {
+            btn.innerHTML = '<span class="spinner"></span>Image ' + (i+1) + '/' + toScan.length + ' — ' + Math.round(m.progress * 100) + '%';
+          }
+        }
+      });
+      var text = (result && result.data && result.data.text) ? result.data.text : '';
+      var items = parseText(text);
+      if (items.length) {
+        for (var j = 0; j < Math.min(items.length, 30); j++) {
+          addLine(items[j].service, items[j].description, items[j].qty, items[j].rate);
+          totalItems++;
+        }
+        img.scanned = true;
+      } else {
+        errors.push('Image ' + (i+1) + ': no line items found.');
+      }
+    } catch(e) {
+      errors.push('Image ' + (i+1) + ': ' + e.message);
+    }
+  }
+
+  calcTotal();
+  renderThumbs();
+
+  if (errors.length) {
+    document.getElementById('scan-err').innerHTML = '<div class="err">' + errors.join('<br>') + '</div>';
+  }
+
+  btn.disabled = false;
+}
 
 var entities = {
   rrc: { name: 'Remi Roofing & Construction, Inc', abbr: 'RRC' },
@@ -212,32 +320,8 @@ dz.addEventListener('dragleave', function() { dz.classList.remove('drag-over'); 
 dz.addEventListener('drop', function(e) {
   e.preventDefault();
   dz.classList.remove('drag-over');
-  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
 });
-
-function handleFile(file) {
-  if (!file || !file.type.startsWith('image/')) return;
-  imgType = file.type;
-  var r = new FileReader();
-  r.onload = function(e) {
-    imgDataUrl = e.target.result;
-    imgBase64 = e.target.result.split(',')[1];
-    document.getElementById('preview-img').src = e.target.result;
-    document.getElementById('preview-wrap').style.display = 'block';
-    document.getElementById('scan-btn').style.display = 'block';
-    document.getElementById('scan-note').style.display = 'block';
-  };
-  r.readAsDataURL(file);
-}
-
-function clearImage() {
-  imgBase64 = null; imgType = null; imgDataUrl = null;
-  document.getElementById('preview-wrap').style.display = 'none';
-  document.getElementById('scan-btn').style.display = 'none';
-  document.getElementById('scan-note').style.display = 'none';
-  document.getElementById('img-input').value = '';
-  document.getElementById('scan-err').innerHTML = '';
-}
 
 function asNum(v) {
   if (v === null || v === undefined || v === '') return null;
@@ -344,36 +428,6 @@ function parseText(text) {
     seen[key] = true; out.push(items[k]);
   }
   return out;
-}
-
-async function scanImageLocal() {
-  if (!imgDataUrl) { document.getElementById('scan-err').innerHTML = '<div class="err">Please upload an image first.</div>'; return; }
-  var btn = document.getElementById('scan-btn');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Reading line items...';
-  document.getElementById('scan-err').innerHTML = '';
-  try {
-    var result = await Tesseract.recognize(imgDataUrl, 'eng', {
-      logger: function(m) {
-        if (m.status === 'recognizing text' && typeof m.progress === 'number') {
-          btn.innerHTML = '<span class="spinner"></span>Reading... ' + Math.round(m.progress * 100) + '%';
-        }
-      }
-    });
-    var text = (result && result.data && result.data.text) ? result.data.text : '';
-    var items = parseText(text);
-    if (!items.length) throw new Error('No usable line items found.');
-    document.getElementById('lines').innerHTML = '';
-    lineCount = 0;
-    for (var i = 0; i < Math.min(items.length, 30); i++) {
-      addLine(items[i].service, items[i].description, items[i].qty, items[i].rate);
-    }
-    calcTotal();
-    btn.innerHTML = 'Re-scan image';
-  } catch(e) {
-    document.getElementById('scan-err').innerHTML = '<div class="err">Could not read line items: ' + e.message + '</div>';
-    btn.innerHTML = 'Scan quote for line items';
-  }
-  btn.disabled = false;
 }
 
 function addLine(svc, desc, qty, rate) {

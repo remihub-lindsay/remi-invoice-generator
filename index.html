@@ -21,6 +21,10 @@ input:focus{outline:none;border-color:#888}
 .doc-type-row{display:flex;gap:12px;margin-bottom:16px}
 .doc-btn{flex:1;padding:10px;border:0.5px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;font-size:13px;font-weight:500;color:#555}
 .doc-btn.active{border-color:#1764c4;background:#1764c4;color:#fff}
+.entity-row{display:flex;gap:12px;margin-bottom:12px}
+.entity-btn{flex:1;padding:8px;border:0.5px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;color:#555;font-weight:500}
+.entity-btn.active{border-color:#222;background:#222;color:#fff}
+.entity-preview{font-size:12px;color:#888;margin-top:4px}
 .line-header{display:grid;grid-template-columns:2fr 2fr 1fr 1fr 1fr 28px;gap:8px;font-size:11px;color:#888;margin-bottom:6px;padding:0 2px}
 .line-row{display:grid;grid-template-columns:2fr 2fr 1fr 1fr 1fr 28px;gap:8px;margin-bottom:8px;align-items:center}
 .line-row input{margin:0}
@@ -57,7 +61,16 @@ input:focus{outline:none;border-color:#888}
 </head>
 <body>
 <h2>Remi document generator</h2>
-
+ 
+<div class="card">
+  <h3>Sending entity</h3>
+  <div class="entity-row">
+    <button class="entity-btn active" onclick="setEntity('rrc',this)">RRC</button>
+    <button class="entity-btn" onclick="setEntity('rrs',this)">RRS</button>
+  </div>
+  <div class="entity-preview" id="entity-preview">Remi Roofing & Construction, Inc</div>
+</div>
+ 
 <div class="card">
   <h3>Document type</h3>
   <div class="doc-type-row">
@@ -75,7 +88,7 @@ input:focus{outline:none;border-color:#888}
     <div><label>Payment due date</label><input type="date" id="due-date"></div>
   </div>
 </div>
-
+ 
 <div class="card">
   <h3>Bill to</h3>
   <div class="toggle-row">
@@ -96,7 +109,7 @@ input:focus{outline:none;border-color:#888}
     <div><label>Address line 2 (city, state, zip)</label><input id="std-addr2" placeholder="Cary, IL 60013"></div>
   </div>
 </div>
-
+ 
 <div class="card">
   <h3>Import from quote screenshot</h3>
   <div class="drop-zone" id="drop-zone">
@@ -112,7 +125,7 @@ input:focus{outline:none;border-color:#888}
   <p class="scan-note" id="scan-note" style="display:none">Reads line items from your screenshot automatically.</p>
   <div id="scan-err"></div>
 </div>
-
+ 
 <div class="card">
   <h3>Line items</h3>
   <div class="line-header">
@@ -127,7 +140,7 @@ input:focus{outline:none;border-color:#888}
     </div>
   </div>
 </div>
-
+ 
 <div class="card" id="receipt-summary-card" style="display:none">
   <h3>Payment summary</h3>
   <div class="receipt-summary">
@@ -145,17 +158,31 @@ input:focus{outline:none;border-color:#888}
     <input id="balance-display" readonly style="background:#f0f0ee;font-weight:500;color:#222" value="$0.00">
   </div>
 </div>
-
+ 
 <button class="generate-btn" onclick="generatePDF()">Generate PDF</button>
-
+ 
 <script>
 var docType = 'invoice';
 var billType = 'sunrun';
+var entity = 'rrc';
 var lineCount = 0;
 var imgBase64 = null;
 var imgType = null;
 var imgDataUrl = null;
-
+ 
+var entities = {
+  rrc: { name: 'Remi Roofing & Construction, Inc', abbr: 'RRC' },
+  rrs: { name: 'Remi Roofing Solutions, Inc', abbr: 'RRS' }
+};
+ 
+function setEntity(t, btn) {
+  entity = t;
+  var btns = document.querySelectorAll('.entity-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+  btn.classList.add('active');
+  document.getElementById('entity-preview').textContent = entities[t].name;
+}
+ 
 function setDocType(t, btn) {
   docType = t;
   var btns = document.querySelectorAll('.doc-btn');
@@ -169,7 +196,7 @@ function setDocType(t, btn) {
   document.getElementById('doc-num').placeholder = placeholders[t];
   updateBalance();
 }
-
+ 
 function setBillType(t, btn) {
   billType = t;
   var btns = document.querySelectorAll('.toggle-btn');
@@ -178,7 +205,7 @@ function setBillType(t, btn) {
   document.getElementById('sunrun-fields').style.display = (t === 'sunrun') ? 'block' : 'none';
   document.getElementById('standard-fields').style.display = (t === 'standard') ? 'block' : 'none';
 }
-
+ 
 var dz = document.getElementById('drop-zone');
 dz.addEventListener('dragover', function(e) { e.preventDefault(); dz.classList.add('drag-over'); });
 dz.addEventListener('dragleave', function() { dz.classList.remove('drag-over'); });
@@ -187,7 +214,7 @@ dz.addEventListener('drop', function(e) {
   dz.classList.remove('drag-over');
   if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
 });
-
+ 
 function handleFile(file) {
   if (!file || !file.type.startsWith('image/')) return;
   imgType = file.type;
@@ -202,7 +229,7 @@ function handleFile(file) {
   };
   r.readAsDataURL(file);
 }
-
+ 
 function clearImage() {
   imgBase64 = null; imgType = null; imgDataUrl = null;
   document.getElementById('preview-wrap').style.display = 'none';
@@ -211,7 +238,7 @@ function clearImage() {
   document.getElementById('img-input').value = '';
   document.getElementById('scan-err').innerHTML = '';
 }
-
+ 
 function asNum(v) {
   if (v === null || v === undefined || v === '') return null;
   if (typeof v === 'number') return isFinite(v) ? v : null;
@@ -222,7 +249,7 @@ function asNum(v) {
 function roundM(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
 function nearEq(a, b, tol) { tol = tol || 0.02; return Math.abs((a || 0) - (b || 0)) <= tol; }
 function likelyQty(n) { return n !== null && n > 0 && n <= 1000 && nearEq(n, Math.round(n), 0.0001); }
-
+ 
 function fixSwap(qty, rate, total) {
   if (qty === null || rate === null) return {qty: qty, rate: rate};
   if ((qty > 100 && !likelyQty(qty)) || ((!likelyQty(qty) || qty >= 50) && likelyQty(rate) && rate <= 25)) {
@@ -231,7 +258,7 @@ function fixSwap(qty, rate, total) {
   }
   return {qty: qty, rate: rate};
 }
-
+ 
 function normItem(raw) {
   var svc = (raw.service || raw.name || '').toString().trim();
   var desc = (raw.description || svc).toString().trim();
@@ -248,7 +275,7 @@ function normItem(raw) {
   if (rate === null || rate < 0) rate = 0;
   return {service: svc, description: desc, qty: qty, rate: rate};
 }
-
+ 
 function isSummary(s) {
   return /(subtotal|tax|discount|balance due|grand total|total due|amount due|payment total|amount paid|deposit|shipping)/i.test(String(s || ''));
 }
@@ -318,7 +345,7 @@ function parseText(text) {
   }
   return out;
 }
-
+ 
 async function scanImageLocal() {
   if (!imgDataUrl) { document.getElementById('scan-err').innerHTML = '<div class="err">Please upload an image first.</div>'; return; }
   var btn = document.getElementById('scan-btn');
@@ -348,7 +375,7 @@ async function scanImageLocal() {
   }
   btn.disabled = false;
 }
-
+ 
 function addLine(svc, desc, qty, rate) {
   if (lineCount >= 30) return;
   svc = svc || ''; desc = desc || '';
@@ -368,9 +395,9 @@ function addLine(svc, desc, qty, rate) {
   document.getElementById('lines').appendChild(div);
   calcTotal();
 }
-
+ 
 function removeLine(id) { var el = document.getElementById(id); if (el) el.remove(); calcTotal(); }
-
+ 
 function calcTotal() {
   var total = 0;
   var rows = document.querySelectorAll('#lines .line-row');
@@ -385,7 +412,7 @@ function calcTotal() {
   document.getElementById('total-display').textContent = '$' + total.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
   updateBalance();
 }
-
+ 
 function updateBalance() {
   if (docType !== 'receipt') return;
   var total = getGrandTotal();
@@ -393,7 +420,7 @@ function updateBalance() {
   var bal = total - paid;
   document.getElementById('balance-display').value = '$' + bal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
-
+ 
 function getGrandTotal() {
   var t = 0;
   var rows = document.querySelectorAll('#lines .line-row');
@@ -403,20 +430,20 @@ function getGrandTotal() {
   }
   return t;
 }
-
+ 
 function fmtM(n) { return '$' + Math.abs(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
-
+ 
 function formatDate(d) {
   var p = d.split('-');
   var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   return months[parseInt(p[1]) - 1] + ' ' + parseInt(p[2]).toString().padStart(2,'0') + ', ' + p[0];
 }
-
+ 
 function formatDateShort(d) {
   var p = d.split('-');
   return p[1] + '/' + p[2] + '/' + p[0];
 }
-
+ 
 function getBillTo() {
   if (billType === 'sunrun') {
     var name = document.getElementById('sr-name').value;
@@ -435,7 +462,7 @@ function getBillTo() {
     document.getElementById('std-addr2').value
   ].filter(Boolean);
 }
-
+ 
 function generatePDF() {
   var jsPDF = window.jspdf.jsPDF;
   var doc = new jsPDF({unit:'pt', format:'letter'});
@@ -443,25 +470,26 @@ function generatePDF() {
   var isReceipt = (docType === 'receipt');
   var isInvoice = (docType === 'invoice');
   var isCM = (docType === 'cm');
-
+  var ent = entities[entity];
+ 
   // Header
   doc.setFontSize(26).setFont('helvetica','bold').setTextColor(23,100,196);
   doc.text('remi', W - mg, 52, {align:'right'});
   doc.setTextColor(30,30,30).setFontSize(13).setFont('helvetica','bold');
-  doc.text('Remi Roofing & Construction, Inc', mg, 48);
+  doc.text(ent.name, mg, 48);
   doc.setFontSize(10).setFont('helvetica','normal');
   doc.text('1850 Ashton Ave, Lehi, UT 84043', mg, 62);
   doc.setTextColor(0,102,204);
   doc.text('payton@remihq.com', mg, 75);
   doc.setTextColor(30,30,30);
-
+ 
   // Info box
   var boxY = 96, boxH = 126;
   doc.setFillColor(240,247,253).roundedRect(mg, boxY, W - mg*2, boxH, 6, 6, 'F');
   var docLabel = isReceipt ? 'Receipt' : isCM ? 'Credit Memo' : 'Invoice';
   doc.setFontSize(22).setFont('helvetica','bold').setTextColor(30,30,30);
   doc.text(docLabel, mg + 20, boxY + 30);
-
+ 
   var billTo = getBillTo();
   doc.setFontSize(9).setFont('helvetica','normal').setTextColor(110,110,110);
   doc.text('Billed to:', mg + 20, boxY + 52);
@@ -470,12 +498,12 @@ function generatePDF() {
   doc.setFont('helvetica','normal').setFontSize(10);
   if (billTo[1]) doc.text(billTo[1], mg + 20, boxY + 80);
   if (billTo[2]) doc.text(billTo[2], mg + 20, boxY + 94);
-
+ 
   var docNum = document.getElementById('doc-num').value || (isReceipt ? 'REMI-XXXXXX' : isCM ? 'REMI-CM-XXX' : 'REMI-XXXXXX');
   var issueVal = document.getElementById('issue-date').value;
   var issueStr = issueVal ? formatDate(issueVal) : '--';
   var rx = W - mg - 20;
-
+ 
   doc.setFontSize(9).setFont('helvetica','normal').setTextColor(110,110,110);
   doc.text(isReceipt ? 'Receipt No.' : 'Document No.', rx, boxY + 18, {align:'right'});
   doc.setFontSize(13).setFont('helvetica','bold').setTextColor(30,30,30);
@@ -484,7 +512,7 @@ function generatePDF() {
   doc.text('Issued on', rx, boxY + 56, {align:'right'});
   doc.setFontSize(11).setFont('helvetica','bold').setTextColor(30,30,30);
   doc.text(issueStr, rx, boxY + 70, {align:'right'});
-
+ 
   if (isInvoice) {
     var dueVal = document.getElementById('due-date').value;
     var dueStr = dueVal ? formatDate(dueVal) : '--';
@@ -493,13 +521,13 @@ function generatePDF() {
     doc.setFontSize(11).setFont('helvetica','bold').setTextColor(30,30,30);
     doc.text(dueStr, rx, boxY + 104, {align:'right'});
   }
-
+ 
   // Line items
   var Cx = {svc: mg+12, desc: mg+140, qty: mg+292, rate: mg+354, tot: W-mg-12};
   var Cw = {svc: 115, desc: 138};
   var LH = 11, RP = 13;
   var y = boxY + boxH + 18;
-
+ 
   doc.setFillColor(245,245,243).rect(mg, y, W - mg*2, 22, 'F');
   doc.setFontSize(9).setFont('helvetica','bold').setTextColor(75,75,75);
   doc.text('Service', Cx.svc, y + 15);
@@ -508,7 +536,7 @@ function generatePDF() {
   doc.text('Rate', Cx.rate, y + 15);
   doc.text('Total', Cx.tot, y + 15, {align:'right'});
   y += 24;
-
+ 
   var grandTotal = 0;
   var lineEls = document.querySelectorAll('#lines .line-row');
   for (var li = 0; li < lineEls.length; li++) {
@@ -543,7 +571,7 @@ function generatePDF() {
     doc.line(mg, y + fRowH, W - mg, y + fRowH);
     y += fRowH;
   }
-
+ 
   if (isReceipt) {
     var paid = parseFloat(document.getElementById('amt-paid').value) || 0;
     var payDateVal = document.getElementById('pay-date').value;
@@ -557,23 +585,19 @@ function generatePDF() {
     var spaceLeft = pageH - botMg - y - boxTotalH;
     var pad = Math.max(minPad, Math.min(spaceLeft, 80));
     y += pad;
-
-    // Single blue box around all summary rows
+ 
     doc.setFillColor(240,247,253).roundedRect(mg, y, W - mg*2, boxTotalH, 6, 6, 'F');
-
-    // Row 1: Total Billed
+ 
     var r1y = y + rH;
     doc.setFontSize(9).setFont('helvetica','normal').setTextColor(110,110,110);
     doc.text('Total Billed', colLabel, r1y, {align:'right'});
     doc.setTextColor(30,30,30);
     doc.text(fmtM(grandTotal), colVal, r1y, {align:'right'});
-
-    // Divider
+ 
     var d1y = r1y + 6;
     doc.setDrawColor(210,228,248);
     doc.line(mg + 12, d1y, W - mg - 12, d1y);
-
-    // Row 2: Amount Paid
+ 
     var r2y = d1y + rH;
     doc.setFontSize(9).setFont('helvetica','normal').setTextColor(110,110,110);
     doc.text('Amount Paid', colLabel, r2y, {align:'right'});
@@ -583,19 +607,17 @@ function generatePDF() {
     }
     doc.setFontSize(9).setTextColor(30,30,30);
     doc.text((paid > 0 ? '-' : '') + fmtM(paid), colVal, r2y, {align:'right'});
-
-    // Divider
+ 
     var d2y = r2y + 8;
     doc.setDrawColor(190,215,245);
     doc.line(mg + 12, d2y, W - mg - 12, d2y);
-
-    // Row 3: Total Amount
+ 
     var r3y = d2y + rH;
     doc.setFontSize(10).setFont('helvetica','normal').setTextColor(100,100,100);
     doc.text('Total Amount (USD)', mg + 20, r3y);
     doc.setFontSize(16).setFont('helvetica','bold').setTextColor(30,30,30);
     doc.text('$' + grandTotal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}), colVal, r3y, {align:'right'});
-
+ 
   } else {
     y += 18;
     doc.setFillColor(237,244,252).roundedRect(W - mg - 190, y, 190, 48, 6, 6, 'F');
@@ -604,11 +626,11 @@ function generatePDF() {
     doc.setFontSize(18).setFont('helvetica','bold').setTextColor(30,30,30);
     doc.text((isCM ? '-' : '') + fmtM(grandTotal), W - mg - 18, y + 38, {align:'right'});
   }
-
+ 
   var fname = (document.getElementById('doc-num').value || (isReceipt ? 'receipt' : isCM ? 'credit-memo' : 'invoice')) + '.pdf';
   doc.save(fname);
 }
-
+ 
 var today = new Date().toISOString().split('T')[0];
 document.getElementById('issue-date').value = today;
 document.getElementById('pay-date').value = today;

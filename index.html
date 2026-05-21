@@ -491,6 +491,10 @@ function getGrandTotal() {
 }
 
 function fmtM(n) { return '$' + Math.abs(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fmtAcct(n) {
+  var abs = Math.abs(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  return n < 0 ? '($' + abs + ')' : '$' + abs;
+}
 
 function formatDate(d) {
   var p = d.split('-');
@@ -615,8 +619,8 @@ function generatePDF() {
     doc.text(svcL, Cx.svc, ty);
     doc.text(descL, Cx.desc, ty);
     doc.text(qty ? String(qty) : '-', Cx.qty, ty);
-    doc.text(rate ? fmtM(rate) : '-', Cx.rate, ty);
-    doc.text(lt ? fmtM(lt) : '-', Cx.tot, ty, {align:'right'});
+    doc.text(rate !== 0 ? fmtAcct(rate) : '-', Cx.rate, ty);
+    doc.text(lt !== 0 ? fmtAcct(lt) : '-', Cx.tot, ty, {align:'right'});
     doc.setDrawColor(215,215,215);
     doc.line(mg, y + rowH, W - mg, y + rowH);
     y += rowH;
@@ -649,9 +653,9 @@ function generatePDF() {
 
     var r1y = y + rH;
     doc.setFontSize(9).setFont('helvetica','normal').setTextColor(110,110,110);
-    doc.text('Total Billed', colLabel, r1y, {align:'right'});
+    doc.text('Amount Due', colLabel, r1y, {align:'right'});
     doc.setTextColor(30,30,30);
-    doc.text(fmtM(grandTotal), colVal, r1y, {align:'right'});
+    doc.text(fmtAcct(grandTotal), colVal, r1y, {align:'right'});
 
     var d1y = r1y + 6;
     doc.setDrawColor(210,228,248);
@@ -671,11 +675,12 @@ function generatePDF() {
     doc.setDrawColor(190,215,245);
     doc.line(mg + 12, d2y, W - mg - 12, d2y);
 
+    var remainingBalance = grandTotal - paid;
     var r3y = d2y + rH;
     doc.setFontSize(10).setFont('helvetica','normal').setTextColor(100,100,100);
-    doc.text('Total Amount (USD)', mg + 20, r3y);
+    doc.text('Remaining Balance', mg + 20, r3y);
     doc.setFontSize(16).setFont('helvetica','bold').setTextColor(30,30,30);
-    doc.text('$' + grandTotal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}), colVal, r3y, {align:'right'});
+    doc.text(fmtAcct(remainingBalance), colVal, r3y, {align:'right'});
 
   } else {
     y += 18;
@@ -683,7 +688,7 @@ function generatePDF() {
     doc.setFontSize(10).setFont('helvetica','normal').setTextColor(110,110,110);
     doc.text('Total (USD)', W - mg - 18, y + 16, {align:'right'});
     doc.setFontSize(18).setFont('helvetica','bold').setTextColor(30,30,30);
-    doc.text((isCM ? '-' : '') + fmtM(grandTotal), W - mg - 18, y + 38, {align:'right'});
+    doc.text(isCM ? fmtAcct(-grandTotal) : fmtAcct(grandTotal), W - mg - 18, y + 38, {align:'right'});
   }
 
   var fname = (document.getElementById('doc-num').value || (isReceipt ? 'receipt' : isCM ? 'credit-memo' : 'invoice')) + '.pdf';

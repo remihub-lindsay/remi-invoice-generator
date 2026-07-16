@@ -106,10 +106,6 @@ input:focus{outline:none;border-color:#888}
 #tab-amfam button:disabled{background:#9aa;cursor:not-allowed;}
 .btn-secondary{background:none;border:1px dashed var(--navy);color:var(--navy);padding:8px 16px;font-size:13px;}
 .btn-secondary:hover{background:var(--light);}
-.copy-row{display:flex;gap:8px;}
-.copy-row input{flex:1;}
-.btn-copy{background:#eef2f6;color:var(--navy);border:1px solid var(--border);padding:9px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
-.btn-copy:hover{background:var(--light);}
 .link-plain{font-size:12px;color:var(--navy);text-decoration:underline;cursor:pointer;background:none;border:none;padding:0;font-weight:500;}
 .note{font-size:12px;color:#889;margin-top:10px;background:var(--light);border-radius:6px;padding:9px 11px;display:none;}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
@@ -197,7 +193,7 @@ table.lines .rm{width:34px;text-align:center;}
 <body>
 <div class="tab-bar">
   <button id="tabbtn-doc" class="active" onclick="showTab('doc')">Invoice / Credit Memo / Receipt</button>
-  <button id="tabbtn-amfam" onclick="showTab('amfam')">AmFam Bid Invoice</button>
+  <button id="tabbtn-amfam" onclick="showTab('amfam')">AmFam Estimate Only Invoice</button>
 </div>
 
 <div id="tab-doc" class="tab-panel active">
@@ -336,10 +332,6 @@ table.lines .rm{width:34px;text-align:center;}
       <h2>Invoice Details</h2>
       <div class="grid3">
         <div class="field">
-          <label for="projectId">Remi Project ID</label>
-          <input type="text" id="projectId" placeholder="e.g. 191430" oninput="updateInvoiceNumber()">
-        </div>
-        <div class="field">
           <label for="invoiceSuffix">Invoice Number</label>
           <div class="prefix-input">
             <span class="prefix">REMI-</span>
@@ -365,13 +357,6 @@ table.lines .rm{width:34px;text-align:center;}
         <div class="field">
           <label for="adjuster">Adjuster</label>
           <input type="text" id="adjuster" placeholder="e.g. Andrew Paulson" oninput="refresh()">
-        </div>
-        <div class="field">
-          <label for="adjusterEmail">Adjuster Email <span style="text-transform:none;font-weight:400;color:#889;">(inferred, not stored in system)</span></label>
-          <div class="copy-row">
-            <input type="text" id="adjusterEmail" placeholder="e.g. andrew.paulson@afics.com">
-            <button type="button" class="btn-copy" onclick="copyField('adjusterEmail', this)">Copy</button>
-          </div>
         </div>
       </div>
     </div>
@@ -1030,12 +1015,6 @@ function getInvoiceNumber(){
   return "REMI-" + (suffix || "000000");
 }
 
-function updateInvoiceNumber(){
-  const pid = document.getElementById('projectId').value.trim();
-  if(pid){ document.getElementById('invoiceSuffix').value = pid; }
-  refresh();
-}
-
 let amfamLineCount = 0;
 function amfamAddLine(desc, qty, rate){
   amfamLineCount++;
@@ -1115,30 +1094,6 @@ refresh();
 // Copy-to-clipboard helper (works for the adjuster email field, or any
 // other readonly/text field on the page).
 // ---------------------------------------------------------------------
-function copyField(id, btn){
-  const el = document.getElementById(id);
-  if(!el.value){ return; }
-  el.focus();
-  el.select();
-  el.setSelectionRange(0, 99999);
-  let copied = false;
-  const finish = () => {
-    if(!btn) return;
-    const orig = btn.textContent;
-    btn.textContent = copied ? 'Copied!' : 'Selected — Ctrl/Cmd+C';
-    setTimeout(()=>{ btn.textContent = orig; }, 1500);
-  };
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(el.value).then(()=>{ copied = true; finish(); }).catch(()=>{
-      try{ copied = document.execCommand('copy'); }catch(e){ copied = false; }
-      finish();
-    });
-  } else {
-    try{ copied = document.execCommand('copy'); }catch(e){ copied = false; }
-    finish();
-  }
-}
-
 // ---------------------------------------------------------------------
 // Standalone PDF generation — no external library required (jsPDF isn't
 // allowed to load in this sandbox, and we also want this file to work

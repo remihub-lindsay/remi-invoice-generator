@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<title>Remi Document Generator</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -45,9 +46,161 @@ input:focus{outline:none;border-color:#888}
 .receipt-summary{background:#f8f8f6;border-radius:8px;padding:14px 16px;margin-top:4px}
 .receipt-summary label{margin-top:8px}
 .receipt-summary label:first-of-type{margin-top:0}
+
+/* ---- tab bar ---- */
+.tab-bar{display:flex;gap:10px;margin-bottom:20px}
+.tab-bar button{flex:0 0 auto;padding:10px 18px;border:0.5px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;font-size:14px;font-weight:500;color:#555}
+.tab-bar button.active{border-color:#222;background:#222;color:#fff}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* ---- AmFam Bid Invoice tab (scoped under #tab-amfam) ---- */
+:root{
+    color-scheme: light;
+    --navy:#1F4E78;
+    --navy-dark:#153a5b;
+    --light:#EAF1F8;
+    --gray:#555555;
+    --border:#dde3ea;
+    --bg:#ffffff;
+  }
+*{box-sizing:border-box;}
+#tab-amfam{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    color:#222;
+  }
+.wrap{max-width:900px;margin:0 auto;}
+#tab-amfam h1{font-size:20px;color:var(--navy);margin:0 0 4px;}
+.sub{color:#667;font-size:13px;margin-bottom:20px;}
+#tab-amfam .card{
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:20px 24px;
+    margin-bottom:18px;
+    box-shadow:0 1px 2px rgba(0,0,0,0.03);
+  }
+#tab-amfam .card h2{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--navy);
+    margin:0 0 14px;
+    border-bottom:1px solid var(--border);
+    padding-bottom:8px;
+  }
+#tab-amfam input[type=text], #tab-amfam input[type=date], #tab-amfam input[type=number]{
+    width:100%;
+    padding:9px 10px;
+    border:1px solid var(--border);
+    border-radius:6px;
+    font-size:14px;
+    background:#fbfcfd;
+  }
+#tab-amfam input:focus{outline:none;border-color:var(--navy);background:#fff;}
+#tab-amfam button{
+    background:var(--navy);color:#fff;border:none;padding:11px 22px;border-radius:7px;
+    font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;
+  }
+#tab-amfam button:hover{background:var(--navy-dark);}
+#tab-amfam button:disabled{background:#9aa;cursor:not-allowed;}
+.btn-secondary{background:none;border:1px dashed var(--navy);color:var(--navy);padding:8px 16px;font-size:13px;}
+.btn-secondary:hover{background:var(--light);}
+.copy-row{display:flex;gap:8px;}
+.copy-row input{flex:1;}
+.btn-copy{background:#eef2f6;color:var(--navy);border:1px solid var(--border);padding:9px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.btn-copy:hover{background:var(--light);}
+.link-plain{font-size:12px;color:var(--navy);text-decoration:underline;cursor:pointer;background:none;border:none;padding:0;font-weight:500;}
+.note{font-size:12px;color:#889;margin-top:10px;background:var(--light);border-radius:6px;padding:9px 11px;display:none;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+#tab-amfam label{display:block;font-size:12px;font-weight:600;color:#445;margin-bottom:5px;}
+.field{margin-bottom:14px;}
+.fixed-box{
+    background:var(--light);border:1px solid #cfe0ef;border-radius:6px;
+    padding:12px 14px;font-size:13px;line-height:1.5;color:#334;
+  }
+.fixed-box b{color:var(--navy);}
+.prefix-input{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:#fbfcfd;}
+.prefix-input .prefix{background:var(--light);color:var(--navy);font-weight:700;font-size:14px;padding:9px 8px 9px 10px;border-right:1px solid var(--border);white-space:nowrap;}
+.prefix-input input{border:none;border-radius:0;background:transparent;flex:1;min-width:0;}
+.prefix-input input:focus{outline:none;background:#fff;}
+table.lines{width:100%;border-collapse:collapse;margin-bottom:10px;}
+table.lines th{text-align:left;font-size:11px;text-transform:uppercase;color:#667;padding:6px 8px;border-bottom:2px solid var(--border);}
+table.lines td{padding:6px 8px;vertical-align:middle;}
+table.lines input{padding:7px 8px;font-size:13px;}
+table.lines .qty{width:70px;}
+table.lines .rate{width:110px;}
+table.lines .amt{width:110px;}
+table.lines .rm{width:34px;text-align:center;}
+#tab-amfam .rm-btn{background:none;border:none;color:#b23b3b;cursor:pointer;font-size:16px;line-height:1;}
+.add-line{background:none;border:1px dashed var(--navy);color:var(--navy);padding:7px 14px;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600;}
+.add-line:hover{background:var(--light);}
+.totals{display:flex;justify-content:flex-end;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.totals .amount{font-size:20px;font-weight:700;color:var(--navy);margin-left:16px;}
+.actions{display:flex;gap:12px;align-items:center;margin-top:8px;}
+.hint{font-size:12px;color:#889;}
+
+  /* ---- Printable invoice sheet (matches Remi's invoice/receipt template) ---- */
+  #invoiceSheet{
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:40px 44px;
+    max-width:760px;
+    margin:0 auto;
+  }
+  .inv-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:30px;}
+  .inv-from b{display:block;font-size:15px;color:#0c1a2a;margin-bottom:4px;}
+  .inv-from span{display:block;font-size:9.5pt;color:#333;}
+  .inv-from .email{color:#2f6fed;}
+  .inv-logo{font-size:26px;font-weight:800;color:#2f6fed;letter-spacing:-0.02em;}
+  .inv-band{
+    background:linear-gradient(135deg,#e9f2fc,#f8fbfe);
+    border-radius:16px;
+    padding:26px 30px;
+    display:flex;
+    justify-content:space-between;
+    gap:24px;
+    margin-bottom:20px;
+  }
+  .band-title{font-size:22px;font-weight:700;color:#0c1a2a;margin-bottom:20px;}
+  .band-badge{display:inline-block;font-size:10.5px;font-weight:700;color:#2f6fed;background:#dce9fc;border-radius:20px;padding:3px 10px;vertical-align:middle;margin-left:8px;letter-spacing:.02em;}
+  .band-label{font-size:12px;color:#8b96a5;margin-bottom:3px;}
+  .band-name{font-size:15px;font-weight:700;color:#0c1a2a;margin-bottom:6px;}
+  .band-addr{font-size:11.5px;color:#4a5568;line-height:1.5;}
+  .band-right{text-align:right;min-width:170px;}
+  .band-pair{margin-bottom:14px;}
+  .band-pair:last-child{margin-bottom:0;}
+  .band-value{font-size:14px;font-weight:700;color:#0c1a2a;margin-top:2px;}
+  .inv-claim-box{background:var(--light);border:1px solid #cfe0ef;border-radius:8px;padding:10px 16px;display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+  .inv-claim-box .label{font-size:9pt;font-weight:700;color:var(--navy);text-transform:uppercase;}
+  .inv-claim-box .value{font-size:14pt;font-weight:700;color:#0c1a2a;}
+  .band-billto-name{font-size:12px;font-weight:700;color:#2c3a4d;margin-bottom:2px;}
+  .band-adjuster{font-size:11.5px;color:#4a5568;margin-top:6px;}
+  .band-adjuster .band-label{font-weight:700;color:#0c1a2a;text-transform:none;margin-bottom:0;}
+  table.inv-table{width:100%;border-collapse:collapse;margin-bottom:20px;}
+  table.inv-table thead th{font-size:12px;color:#8b96a5;font-weight:600;padding:8px 6px;text-align:left;border-bottom:1px solid #e3e8ee;}
+  table.inv-table thead th.num{text-align:right;}
+  table.inv-table tbody td{padding:10px 6px;font-size:12.5px;color:#0c1a2a;border-bottom:1px solid #eef1f5;}
+  table.inv-table tbody td.num{text-align:right;color:#8b96a5;}
+  table.inv-table tbody td.num.amt{color:#0c1a2a;font-weight:700;}
+  .inv-total-wrap{display:flex;justify-content:flex-end;margin-bottom:22px;}
+  .inv-total-box{background:var(--light);border-radius:12px;padding:16px 26px;display:flex;align-items:center;gap:26px;min-width:280px;justify-content:space-between;}
+  .inv-total-box .label{font-size:13px;color:#7d8aa0;font-weight:500;}
+  .inv-total-box .value{font-size:22px;font-weight:800;color:#0c1a2a;}
+  .inv-footer{font-size:8.5pt;color:var(--gray);}
+  .inv-footer .payable{font-weight:700;margin-bottom:3px;}
+
 </style>
 </head>
 <body>
+<div class="tab-bar">
+  <button id="tabbtn-doc" class="active" onclick="showTab('doc')">Invoice / Credit Memo / Receipt</button>
+  <button id="tabbtn-amfam" onclick="showTab('amfam')">AmFam Bid Invoice</button>
+</div>
+
+<div id="tab-doc" class="tab-panel active">
 <h2>Remi document generator</h2>
 
 <div class="card">
@@ -152,6 +305,168 @@ input:focus{outline:none;border-color:#888}
 </div>
 
 <button class="generate-btn" onclick="generatePDF()">Generate PDF</button>
+</div>
+
+<div id="tab-amfam" class="tab-panel">
+<div class="wrap">
+  <div>
+    <h1>AmFam Invoice Generator</h1>
+    <div class="sub">Fill in the invoice details below, then download the PDF.</div>
+
+    <div class="card">
+      <h2>From / Bill To</h2>
+      <div class="grid">
+        <div class="fixed-box">
+          <b>From</b><br>
+          Remi Roofing &amp; Construction, Inc<br>
+          1850 Ashton Blvd, Lehi, UT 84043<br>
+          payton@remihq.com
+        </div>
+        <div class="fixed-box">
+          <b>Bill To</b><br>
+          American Family Insurance<br>
+          AFICS, Inc.<br>
+          6000 American Parkway<br>
+          Madison, WI 53783-0001
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Invoice Details</h2>
+      <div class="grid3">
+        <div class="field">
+          <label for="projectId">Remi Project ID</label>
+          <input type="text" id="projectId" placeholder="e.g. 191430" oninput="updateInvoiceNumber()">
+        </div>
+        <div class="field">
+          <label for="invoiceSuffix">Invoice Number</label>
+          <div class="prefix-input">
+            <span class="prefix">REMI-</span>
+            <input type="text" id="invoiceSuffix" placeholder="191430" oninput="refresh()">
+          </div>
+        </div>
+        <div class="field">
+          <label for="bidId">Bid ID</label>
+          <input type="text" id="bidId" placeholder="e.g. 115324" oninput="refresh()">
+        </div>
+        <div class="field">
+          <label for="invoiceDate">Invoice Date</label>
+          <input type="date" id="invoiceDate" oninput="refresh()">
+        </div>
+        <div class="field">
+          <label for="claimNumber">Claim Number</label>
+          <input type="text" id="claimNumber" placeholder="e.g. 01009943320" oninput="refresh()">
+        </div>
+        <div class="field">
+          <label for="homeowner">Insured / Homeowner Name</label>
+          <input type="text" id="homeowner" placeholder="e.g. Mary Howell And Eric Howell" oninput="refresh()">
+        </div>
+        <div class="field">
+          <label for="adjuster">Adjuster</label>
+          <input type="text" id="adjuster" placeholder="e.g. Andrew Paulson" oninput="refresh()">
+        </div>
+        <div class="field">
+          <label for="adjusterEmail">Adjuster Email <span style="text-transform:none;font-weight:400;color:#889;">(inferred, not stored in system)</span></label>
+          <div class="copy-row">
+            <input type="text" id="adjusterEmail" placeholder="e.g. andrew.paulson@afics.com">
+            <button type="button" class="btn-copy" onclick="copyField('adjusterEmail', this)">Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Line Items</h2>
+      <table class="lines" id="lineTable">
+        <thead>
+          <tr><th>Description</th><th class="qty">Qty</th><th class="rate">Rate ($)</th><th class="amt">Amount</th><th class="rm"></th></tr>
+        </thead>
+        <tbody id="lineBody"><tr data-id="1">
+    <td><input type="text" class="li-desc" value="Insurance Estimate Service Fee" placeholder="Description" oninput="refresh()"></td>
+    <td class="qty"><input type="number" class="li-qty" value="1" min="0" step="1" oninput="refresh()"></td>
+    <td class="rate"><input type="number" class="li-rate" value="60" min="0" step="0.01" oninput="refresh()"></td>
+    <td class="amt"><span class="li-amt">$60.00</span></td>
+    <td class="rm"><button type="button" class="rm-btn" onclick="amfamRemoveLine(this)">×</button></td>
+  </tr></tbody>
+      </table>
+      <button type="button" class="add-line" onclick="amfamAddLine()">+ Add line item</button>
+      <div class="totals">
+        <div>Total Due:</div>
+        <div class="amount" id="totalDisplay">$60.00</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="actions">
+        <button type="button" onclick="downloadInvoicePdf()">Download Invoice PDF</button>
+        <span class="hint">Downloads directly as a .pdf file.</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="invoiceSheet">
+    <div class="inv-header">
+      <div class="inv-from">
+        <b>Remi Roofing &amp; Construction, Inc</b>
+        <span>1850 Ashton Blvd, Lehi, UT 84043</span>
+        <span class="email">payton@remihq.com</span>
+      </div>
+      <div class="inv-logo">remi</div>
+    </div>
+
+    <div class="inv-band">
+      <div class="band-left">
+        <div class="band-title">Invoice <span class="band-badge">Estimate Only</span></div>
+        <div class="band-label">Insured / Customer:</div>
+        <div class="band-name" id="s-homeowner">—</div>
+        <div class="band-adjuster"><span class="band-label" style="display:inline;">Adjuster:</span> <span id="s-adjuster">—</span></div>
+        <div class="band-label" style="margin-top:10px;">Billed to:</div>
+        <div class="band-billto-name">American Family Insurance</div>
+        <div class="band-addr">AFICS, Inc.<br>6000 American Parkway, Madison, WI 53783-0001</div>
+      </div>
+      <div class="band-right">
+        <div class="band-pair"><div class="band-label">Invoice No.</div><div class="band-value" id="s-invNum">REMI-000000</div></div>
+        <div class="band-pair"><div class="band-label">Bid ID</div><div class="band-value" id="s-bidId">—</div></div>
+        <div class="band-pair"><div class="band-label">Issued on</div><div class="band-value" id="s-invDate">July 10, 2026</div></div>
+      </div>
+    </div>
+
+    <div class="inv-claim-box">
+      <div class="label">Claim Number</div>
+      <div class="value" id="s-claim">—</div>
+    </div>
+
+    <table class="inv-table">
+      <thead>
+        <tr><th>Description</th><th class="num">Qty.</th><th class="num">Rate</th><th class="num">Total</th></tr>
+      </thead>
+      <tbody id="s-lineBody"><tr><td>Insurance Estimate Service Fee</td><td class="num">1</td><td class="num">$60.00</td><td class="num amt">$60.00</td></tr></tbody>
+    </table>
+
+    <div class="inv-total-wrap">
+      <div class="inv-total-box">
+        <div class="label">Total Due</div>
+        <div class="value" id="s-total">$60.00</div>
+      </div>
+    </div>
+
+    <div class="inv-footer">
+      <div class="payable">Payable by: American Family Insurance (AFICS)</div>
+      <div id="s-footerNote">This invoice is for the Estimate Only insurance service, billed at the claim level. Please reference Claim Number — in all correspondence and payment records.</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+function showTab(t){
+  document.getElementById('tab-doc').classList.toggle('active', t==='doc');
+  document.getElementById('tab-amfam').classList.toggle('active', t==='amfam');
+  document.getElementById('tabbtn-doc').classList.toggle('active', t==='doc');
+  document.getElementById('tabbtn-amfam').classList.toggle('active', t==='amfam');
+}
+</script>
 
 <script>
 var docType = 'invoice';
@@ -491,10 +806,6 @@ function getGrandTotal() {
 }
 
 function fmtM(n) { return '$' + Math.abs(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}); }
-function fmtAcct(n) {
-  var abs = Math.abs(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
-  return n < 0 ? '($' + abs + ')' : '$' + abs;
-}
 
 function formatDate(d) {
   var p = d.split('-');
@@ -619,8 +930,8 @@ function generatePDF() {
     doc.text(svcL, Cx.svc, ty);
     doc.text(descL, Cx.desc, ty);
     doc.text(qty ? String(qty) : '-', Cx.qty, ty);
-    doc.text(rate !== 0 ? fmtAcct(rate) : '-', Cx.rate, ty);
-    doc.text(lt !== 0 ? fmtAcct(lt) : '-', Cx.tot, ty, {align:'right'});
+    doc.text(rate ? fmtM(rate) : '-', Cx.rate, ty);
+    doc.text(lt ? fmtM(lt) : '-', Cx.tot, ty, {align:'right'});
     doc.setDrawColor(215,215,215);
     doc.line(mg, y + rowH, W - mg, y + rowH);
     y += rowH;
@@ -653,9 +964,9 @@ function generatePDF() {
 
     var r1y = y + rH;
     doc.setFontSize(9).setFont('helvetica','normal').setTextColor(110,110,110);
-    doc.text('Amount Due', colLabel, r1y, {align:'right'});
+    doc.text('Total Billed', colLabel, r1y, {align:'right'});
     doc.setTextColor(30,30,30);
-    doc.text(fmtAcct(grandTotal), colVal, r1y, {align:'right'});
+    doc.text(fmtM(grandTotal), colVal, r1y, {align:'right'});
 
     var d1y = r1y + 6;
     doc.setDrawColor(210,228,248);
@@ -675,12 +986,11 @@ function generatePDF() {
     doc.setDrawColor(190,215,245);
     doc.line(mg + 12, d2y, W - mg - 12, d2y);
 
-    var remainingBalance = grandTotal - paid;
     var r3y = d2y + rH;
     doc.setFontSize(10).setFont('helvetica','normal').setTextColor(100,100,100);
-    doc.text('Remaining Balance', mg + 20, r3y);
+    doc.text('Total Amount (USD)', mg + 20, r3y);
     doc.setFontSize(16).setFont('helvetica','bold').setTextColor(30,30,30);
-    doc.text(fmtAcct(remainingBalance), colVal, r3y, {align:'right'});
+    doc.text('$' + grandTotal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}), colVal, r3y, {align:'right'});
 
   } else {
     y += 18;
@@ -688,7 +998,7 @@ function generatePDF() {
     doc.setFontSize(10).setFont('helvetica','normal').setTextColor(110,110,110);
     doc.text('Total (USD)', W - mg - 18, y + 16, {align:'right'});
     doc.setFontSize(18).setFont('helvetica','bold').setTextColor(30,30,30);
-    doc.text(isCM ? fmtAcct(-grandTotal) : fmtAcct(grandTotal), W - mg - 18, y + 38, {align:'right'});
+    doc.text((isCM ? '-' : '') + fmtM(grandTotal), W - mg - 18, y + 38, {align:'right'});
   }
 
   var fname = (document.getElementById('doc-num').value || (isReceipt ? 'receipt' : isCM ? 'credit-memo' : 'invoice')) + '.pdf';
@@ -706,6 +1016,348 @@ document.getElementById('issue-date').addEventListener('change', function() {
   d.setDate(d.getDate() + 7);
   document.getElementById('due-date').value = d.toISOString().split('T')[0];
 });
+</script>
+
+<script>
+function todayISO(){
+  const d = new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,'0')+"-"+String(d.getDate()).padStart(2,'0');
+}
+document.getElementById('invoiceDate').value = todayISO();
+
+function getInvoiceNumber(){
+  const suffix = document.getElementById('invoiceSuffix').value.trim();
+  return "REMI-" + (suffix || "000000");
+}
+
+function updateInvoiceNumber(){
+  const pid = document.getElementById('projectId').value.trim();
+  if(pid){ document.getElementById('invoiceSuffix').value = pid; }
+  refresh();
+}
+
+let amfamLineCount = 0;
+function amfamAddLine(desc, qty, rate){
+  amfamLineCount++;
+  const tbody = document.getElementById('lineBody');
+  const tr = document.createElement('tr');
+  tr.dataset.id = amfamLineCount;
+  tr.innerHTML = `
+    <td><input type="text" class="li-desc" value="${desc||''}" placeholder="Description" oninput="refresh()"></td>
+    <td class="qty"><input type="number" class="li-qty" value="${qty!==undefined?qty:1}" min="0" step="1" oninput="refresh()"></td>
+    <td class="rate"><input type="number" class="li-rate" value="${rate!==undefined?rate:0}" min="0" step="0.01" oninput="refresh()"></td>
+    <td class="amt"><span class="li-amt">$0.00</span></td>
+    <td class="rm"><button type="button" class="rm-btn" onclick="amfamRemoveLine(this)">&times;</button></td>
+  `;
+  tbody.appendChild(tr);
+  refresh();
+}
+function amfamRemoveLine(btn){
+  btn.closest('tr').remove();
+  refresh();
+}
+
+function formatDateDisplay(iso){
+  if(!iso) return "";
+  const [y,m,d] = iso.split("-");
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  return months[parseInt(m,10)-1]+" "+parseInt(d,10)+", "+y;
+}
+
+function esc(s){
+  const div = document.createElement('div');
+  div.textContent = s == null ? '' : s;
+  return div.innerHTML;
+}
+
+function refresh(){
+  // form line totals
+  let total = 0;
+  const lineData = [];
+  document.querySelectorAll('#lineBody tr').forEach(tr=>{
+    const desc = tr.querySelector('.li-desc').value || "";
+    const qty = parseFloat(tr.querySelector('.li-qty').value) || 0;
+    const rate = parseFloat(tr.querySelector('.li-rate').value) || 0;
+    const amt = qty*rate;
+    tr.querySelector('.li-amt').textContent = "$"+amt.toFixed(2);
+    total += amt;
+    lineData.push({desc, qty, rate, amt});
+  });
+  document.getElementById('totalDisplay').textContent = "$"+total.toFixed(2);
+
+  // invoice sheet
+  const invoiceNumber = getInvoiceNumber();
+  const bidId = document.getElementById('bidId').value.trim();
+  const claim = document.getElementById('claimNumber').value.trim();
+  const homeowner = document.getElementById('homeowner').value.trim();
+  const adjuster = document.getElementById('adjuster').value.trim();
+  const invoiceDateISO = document.getElementById('invoiceDate').value;
+
+  document.getElementById('s-invNum').textContent = invoiceNumber;
+  document.getElementById('s-invDate').textContent = formatDateDisplay(invoiceDateISO) || '—';
+  document.getElementById('s-bidId').textContent = bidId || '—';
+  document.getElementById('s-claim').textContent = claim || '—';
+  document.getElementById('s-homeowner').textContent = homeowner || '—';
+  document.getElementById('s-adjuster').textContent = adjuster || '—';
+
+  const sBody = document.getElementById('s-lineBody');
+  sBody.innerHTML = lineData.map(l =>
+    '<tr><td>'+esc(l.desc)+'</td><td class="num">'+l.qty+'</td><td class="num">$'+l.rate.toFixed(2)+'</td><td class="num amt">$'+l.amt.toFixed(2)+'</td></tr>'
+  ).join('');
+  document.getElementById('s-total').textContent = "$"+total.toFixed(2);
+  document.getElementById('s-footerNote').textContent =
+    "This invoice is for the Estimate Only insurance service, billed at the claim level. Please reference Claim Number " + (claim || "—") + " in all correspondence and payment records.";
+}
+
+refresh();
+
+// ---------------------------------------------------------------------
+// Copy-to-clipboard helper (works for the adjuster email field, or any
+// other readonly/text field on the page).
+// ---------------------------------------------------------------------
+function copyField(id, btn){
+  const el = document.getElementById(id);
+  if(!el.value){ return; }
+  el.focus();
+  el.select();
+  el.setSelectionRange(0, 99999);
+  let copied = false;
+  const finish = () => {
+    if(!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = copied ? 'Copied!' : 'Selected — Ctrl/Cmd+C';
+    setTimeout(()=>{ btn.textContent = orig; }, 1500);
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(el.value).then(()=>{ copied = true; finish(); }).catch(()=>{
+      try{ copied = document.execCommand('copy'); }catch(e){ copied = false; }
+      finish();
+    });
+  } else {
+    try{ copied = document.execCommand('copy'); }catch(e){ copied = false; }
+    finish();
+  }
+}
+
+// ---------------------------------------------------------------------
+// Standalone PDF generation — no external library required (jsPDF isn't
+// allowed to load in this sandbox, and we also want this file to work
+// completely offline when copied to another computer). This hand-builds
+// a minimal, valid PDF (Helvetica/Helvetica-Bold, text + lines + rects)
+// and downloads it directly as a .pdf file.
+// ---------------------------------------------------------------------
+const _measureCanvas = document.createElement('canvas');
+const _measureCtx = _measureCanvas.getContext('2d');
+function textWidthPt(str, sizePt, bold){
+  _measureCtx.font = (bold ? 'bold ' : '') + Math.round(sizePt * 96/72) + 'px Arial, Helvetica, sans-serif';
+  return _measureCtx.measureText(String(str)).width * 72/96;
+}
+function pdfEscape(str){
+  return String(str).replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
+}
+
+function buildInvoicePdf(data){
+  const pageW = 612, pageH = 792, marginX = 50;
+  const NAVY = [0.122,0.306,0.471], LIGHT = [0.918,0.945,0.973];
+  const BAND = [0.925,0.953,0.984];
+  const GRAY = [0.333,0.333,0.333], GRAYLABEL = [0.545,0.588,0.647];
+  const DARK = [0.047,0.102,0.165], BLUE = [0.184,0.435,0.929];
+  const CCC = [0.89,0.91,0.93];
+  const BLACK = [0,0,0], WHITE = [1,1,1];
+  const ops = [];
+
+  function setColor(rgb, kind){
+    const [r,g,b] = rgb;
+    ops.push(r.toFixed(3)+' '+g.toFixed(3)+' '+b.toFixed(3)+' '+(kind==='s'?'RG':'rg'));
+  }
+  function text(x, yTop, str, opts){
+    opts = opts || {};
+    const size = opts.size || 10, bold = !!opts.bold, color = opts.color || BLACK;
+    let tx = x;
+    if(opts.align === 'right'){ tx = x - textWidthPt(str, size, bold); }
+    const y = pageH - yTop;
+    setColor(color, 'f');
+    ops.push('BT /'+(bold?'F2':'F1')+' '+size+' Tf '+tx.toFixed(2)+' '+y.toFixed(2)+' Td ('+pdfEscape(str)+') Tj ET');
+  }
+  function lineTo(x1, yTop1, x2, yTop2, width, color){
+    const y1 = pageH-yTop1, y2 = pageH-yTop2;
+    setColor(color||BLACK, 's');
+    ops.push((width||1)+' w '+x1.toFixed(2)+' '+y1.toFixed(2)+' m '+x2.toFixed(2)+' '+y2.toFixed(2)+' l S');
+  }
+  function rectAt(x, yTop, w, h, opts){
+    opts = opts || {};
+    const y = pageH - yTop - h;
+    if(opts.fill){ setColor(opts.fill, 'f'); }
+    if(opts.stroke){ setColor(opts.stroke, 's'); ops.push((opts.lineWidth||1)+' w'); }
+    ops.push(x.toFixed(2)+' '+y.toFixed(2)+' '+w.toFixed(2)+' '+h.toFixed(2)+' re');
+    if(opts.fill && opts.stroke) ops.push('B');
+    else if(opts.fill) ops.push('f');
+    else ops.push('S');
+  }
+  // Rounded rect (soft card look, matches the light-blue bands in the template)
+  function roundedRect(x, yTop, w, h, r, opts){
+    opts = opts || {};
+    const y0 = pageH - yTop - h, y1 = y0 + h, x0 = x, x1 = x + w;
+    const k = 0.5523 * r;
+    if(opts.fill){ setColor(opts.fill, 'f'); }
+    if(opts.stroke){ setColor(opts.stroke, 's'); ops.push((opts.lineWidth||1)+' w'); }
+    ops.push((x0+r).toFixed(2)+' '+y0.toFixed(2)+' m');
+    ops.push((x1-r).toFixed(2)+' '+y0.toFixed(2)+' l');
+    ops.push([(x1-r+k),(y0),(x1),(y0+r-k),(x1),(y0+r)].map(v=>v.toFixed(2)).join(' ')+' c');
+    ops.push((x1).toFixed(2)+' '+(y1-r).toFixed(2)+' l');
+    ops.push([(x1),(y1-r+k),(x1-r+k),(y1),(x1-r),(y1)].map(v=>v.toFixed(2)).join(' ')+' c');
+    ops.push((x0+r).toFixed(2)+' '+y1.toFixed(2)+' l');
+    ops.push([(x0+r-k),(y1),(x0),(y1-r+k),(x0),(y1-r)].map(v=>v.toFixed(2)).join(' ')+' c');
+    ops.push((x0).toFixed(2)+' '+(y0+r).toFixed(2)+' l');
+    ops.push([(x0),(y0+r-k),(x0+r-k),(y0),(x0+r),(y0)].map(v=>v.toFixed(2)).join(' ')+' c');
+    ops.push('h');
+    if(opts.fill && opts.stroke) ops.push('B');
+    else if(opts.fill) ops.push('f');
+    else ops.push('S');
+  }
+
+  const {invoiceNumber, invoiceDateDisplay, bidId, claim, homeowner, adjuster, lines, total} = data;
+
+  // Header: company block left, "remi" wordmark right — no divider line,
+  // matching the template's clean header.
+  let y = 56;
+  text(marginX, y, "Remi Roofing & Construction, Inc", {size:14, bold:true, color:DARK});
+  text(marginX, y+15, "1850 Ashton Blvd, Lehi, UT 84043", {size:9.5, color:GRAY});
+  text(marginX, y+28, "payton@remihq.com", {size:9.5, color:BLUE});
+  text(pageW-marginX, y+2, "remi", {size:24, bold:true, color:BLUE, align:'right'});
+
+  // Big light-blue rounded band: title + insured + adjuster + billed-to on
+  // the left, invoice no. / bid id / issued on on the right.
+  const bandTop = y + 60;
+  const bandH = 168;
+  roundedRect(marginX, bandTop, pageW-2*marginX, bandH, 14, {fill:BAND});
+
+  const padX = 28;
+  const BLUEBADGE = [0.184,0.435,0.929], BADGEBG = [0.863,0.914,0.988];
+  text(marginX+padX, bandTop+38, "Invoice", {size:21, bold:true, color:DARK});
+  const badgeText = "ESTIMATE ONLY";
+  const badgeW = textWidthPt(badgeText, 9, true) + 20;
+  const badgeX = marginX+padX+textWidthPt("Invoice",21,true)+12;
+  roundedRect(badgeX, bandTop+24, badgeW, 16, 8, {fill:BADGEBG});
+  text(badgeX+10, bandTop+35, badgeText, {size:9, bold:true, color:BLUEBADGE});
+  text(marginX+padX, bandTop+66, "Insured / Customer:", {size:9.5, color:GRAYLABEL});
+  text(marginX+padX, bandTop+84, homeowner || "—", {size:15, bold:true, color:DARK});
+  text(marginX+padX, bandTop+100, "Adjuster:", {size:10, bold:true, color:DARK});
+  text(marginX+padX+52, bandTop+100, adjuster || "—", {size:10, color:GRAY});
+  text(marginX+padX, bandTop+120, "Billed to:", {size:9, color:GRAYLABEL});
+  text(marginX+padX, bandTop+133, "American Family Insurance", {size:11, bold:true, color:[0.173,0.226,0.302]});
+  text(marginX+padX, bandTop+146, "AFICS, Inc. \xB7 6000 American Parkway, Madison, WI 53783-0001", {size:8.5, color:GRAY});
+
+  const rightX = pageW - marginX - padX;
+  text(rightX, bandTop+38, "Invoice No.", {size:9.5, color:GRAYLABEL, align:'right'});
+  text(rightX, bandTop+54, invoiceNumber, {size:13, bold:true, color:DARK, align:'right'});
+  text(rightX, bandTop+78, "Bid ID", {size:9.5, color:GRAYLABEL, align:'right'});
+  text(rightX, bandTop+94, bidId || "—", {size:13, bold:true, color:DARK, align:'right'});
+  text(rightX, bandTop+118, "Issued on", {size:9.5, color:GRAYLABEL, align:'right'});
+  text(rightX, bandTop+134, invoiceDateDisplay, {size:13, bold:true, color:DARK, align:'right'});
+
+  // Claim number banner (kept as its own callout below the main band)
+  const cy = bandTop + bandH + 20;
+  roundedRect(marginX, cy, pageW-2*marginX, 32, 8, {fill:LIGHT, stroke:NAVY, lineWidth:0.75});
+  text(marginX+14, cy+20, "CLAIM NUMBER", {size:9, bold:true, color:NAVY});
+  text(marginX+150, cy+21, claim || "—", {size:14, bold:true, color:DARK});
+
+  // Line items table — plain gray headers + thin dividers, like the template
+  const ty = cy + 32 + 26;
+  text(marginX, ty, "Description", {size:9.5, color:GRAYLABEL});
+  text(marginX+300, ty, "Qty.", {size:9.5, color:GRAYLABEL, align:'right'});
+  text(marginX+370, ty, "Rate", {size:9.5, color:GRAYLABEL, align:'right'});
+  text(pageW-marginX, ty, "Total", {size:9.5, color:GRAYLABEL, align:'right'});
+  lineTo(marginX, ty+8, pageW-marginX, ty+8, 0.75, CCC);
+
+  let ly = ty + 8;
+  lines.forEach(l=>{
+    ly += 24;
+    text(marginX, ly-6, l.desc || "", {size:10.5, color:DARK});
+    text(marginX+300, ly-6, String(l.qty), {size:10.5, color:GRAYLABEL, align:'right'});
+    text(marginX+370, ly-6, "$"+l.rate.toFixed(2), {size:10.5, color:GRAYLABEL, align:'right'});
+    text(pageW-marginX, ly-6, "$"+l.amount.toFixed(2), {size:10.5, bold:true, color:DARK, align:'right'});
+    lineTo(marginX, ly, pageW-marginX, ly, 0.5, CCC);
+  });
+
+  // Total — rounded light-blue box, right-aligned, like the template
+  const tby = ly + 26;
+  const boxW = 220, boxH = 44;
+  const boxX = pageW - marginX - boxW;
+  roundedRect(boxX, tby, boxW, boxH, 10, {fill:LIGHT});
+  text(boxX+18, tby+boxH/2+4, "Total Due", {size:11, color:GRAYLABEL});
+  text(boxX+boxW-18, tby+boxH/2+5, "$"+total.toFixed(2), {size:16, bold:true, color:DARK, align:'right'});
+
+  const fy = tby + boxH + 26;
+  text(marginX, fy, "Payable by: American Family Insurance (AFICS)", {size:8.5, bold:true, color:GRAY});
+  text(marginX, fy+13, "This invoice is for the Estimate Only insurance service, billed at the claim level. Please reference Claim Number "+(claim||"—")+" in all correspondence and payment records.", {size:8.5, color:GRAY});
+
+  return assemblePdf(ops.join("\n"), pageW, pageH, invoiceNumber);
+}
+
+function assemblePdf(streamContent, pageW, pageH, title){
+  const objs = {};
+  objs[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+  objs[2] = "<< /Type /Pages /Kids [3 0 R] /Count 1 >>";
+  objs[3] = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 "+pageW+" "+pageH+"] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>";
+  objs[4] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+  objs[5] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>";
+  objs[6] = "<< /Length "+streamContent.length+" >>\nstream\n"+streamContent+"\nendstream";
+  objs[7] = "<< /Title ("+pdfEscape(title||'Invoice')+") /Producer (Remi Bid Invoice Generator) >>";
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = {};
+  for(let i=1;i<=7;i++){
+    offsets[i] = pdf.length;
+    pdf += i+" 0 obj\n"+objs[i]+"\nendobj\n";
+  }
+  const xrefStart = pdf.length;
+  let xref = "xref\n0 8\n0000000000 65535 f \n";
+  for(let i=1;i<=7;i++){
+    xref += String(offsets[i]).padStart(10,'0')+" 00000 n \n";
+  }
+  pdf += xref;
+  pdf += "trailer\n<< /Size 8 /Root 1 0 R /Info 7 0 R >>\nstartxref\n"+xrefStart+"\n%%EOF";
+  return pdf;
+}
+
+function downloadInvoicePdf(){
+  const invoiceNumber = getInvoiceNumber();
+  const bidId = document.getElementById('bidId').value.trim();
+  const claim = document.getElementById('claimNumber').value.trim();
+  const homeowner = document.getElementById('homeowner').value.trim();
+  const adjuster = document.getElementById('adjuster').value.trim();
+  const invoiceDateISO = document.getElementById('invoiceDate').value;
+
+  const lines = [];
+  document.querySelectorAll('#lineBody tr').forEach(tr=>{
+    const desc = tr.querySelector('.li-desc').value || "";
+    const qty = parseFloat(tr.querySelector('.li-qty').value) || 0;
+    const rate = parseFloat(tr.querySelector('.li-rate').value) || 0;
+    lines.push({desc, qty, rate, amount: qty*rate});
+  });
+  const total = lines.reduce((s,l)=>s+l.amount, 0);
+
+  const pdfString = buildInvoicePdf({
+    invoiceNumber,
+    invoiceDateDisplay: formatDateDisplay(invoiceDateISO) || '—',
+    bidId, claim, homeowner, adjuster, lines, total
+  });
+
+  const blob = new Blob([pdfString], {type:'application/pdf'});
+  const url = URL.createObjectURL(blob);
+  // File name is the claim number (falls back to invoice number if the
+  // claim number hasn't been filled in yet).
+  const filenameBase = claim || invoiceNumber;
+  const filename = filenameBase.replace(/[^A-Za-z0-9\-]+/g,'_') + '.pdf';
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}
 </script>
 </body>
 </html>
